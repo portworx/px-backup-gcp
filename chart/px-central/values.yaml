@@ -1,0 +1,253 @@
+persistentStorage:
+  enabled: true
+  storageClassName:
+  cassandra:
+    storage: 64Gi
+  grafana:
+    storage: 20Gi
+  consul:
+    storage: 8Gi
+  alertManager:
+    storage: 2Gi
+  ingester:
+    storage: 2Gi
+  mysqlVolumeSize: "100Gi"
+  mongodbVolumeSize: "64Gi"
+  mongoCacheSize: 4
+  keycloakThemeVolumeSize: "5Gi"
+  keycloakBackendVolumeSize: "10Gi"
+
+storkRequired: false
+nodeAffinityLabel: ""
+podAntiAffinity: false
+
+pxcentralDBPassword: Password1
+caCertsSecretName: ""
+
+oidc:
+  centralOIDC:
+    enabled: true
+    defaultUsername: admin
+    defaultPassword: admin
+    defaultEmail: admin@portworx.com
+    keyCloakBackendUserName: keycloak
+    keyCloakBackendPassword: keycloak
+    clientId: "pxcentral"
+    updateAdminProfile: true
+
+  externalOIDC:
+    enabled: false
+    clientID:
+    clientSecret:
+    endpoint:
+
+postInstallJob:
+  sslEnabled: true
+
+pxbackup:
+  enabled: true
+  orgName: default
+  callHome: true
+  mongoMigration: complete
+
+pxlicenseserver:
+  enabled: false
+  internal:
+    enabled: true
+    lsTypeUAT: false
+    lsTypeAirgapped: false
+  external:
+    enabled: false
+  mainNodeIP: ""
+  backupNodeIP: ""
+  adminUserName: admin
+  adminUserPassword: Adm1n!Ur
+
+pxmonitor:
+  enabled: false
+  pxCentralEndpoint:
+  sslEnabled: false
+  oidcClientID: pxcentral
+  consulBindInterface: ""
+  cortex:
+    alertmanager:
+      advertiseAddress: ""
+
+service:
+  pxCentralUIServiceType: "LoadBalancer"
+  ## To set the LoadBalancer service type to internal only
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+  pxCentralUIServiceAnnotations: {}
+  pxBackupUIServiceType: "LoadBalancer"
+  pxBackupUIServiceAnnotations: {}
+  grafanaServiceType: "NodePort"
+  cortexNginxServiceType: "NodePort"
+
+## Memory settings: These are calculated automatically unless specified otherwise
+## To run on environments with little resources (<= 8GB), tune your heap settings:
+## maxHeapSize:
+## - calculate 1/2 ram and cap to 1024MB
+## - calculate 1/4 ram and cap to 8192MB
+## - pick the max
+## newHeapSize:
+## A good guideline is 100 MB per CPU core.
+## - min(100 * num_cores, 1/4 * heap size)
+##
+# maxHeapSize: 4G
+# newHeapSize: 800M
+
+cassandra:
+  jvm:
+    maxHeapSize:
+    newHeapSize:
+
+installCRDs: false
+clusterDomain: "cluster.local"
+cassandraUsername: cassandra
+cassandraPassword: cassandra
+
+operatorToChartUpgrade: false
+
+securityContext:
+  runAsUser: 1000
+  fsGroup: 1000
+  runAsNonRoot: true
+
+reportingSecret:                  # Name of reporting secret for GCP marketplace. (Needs to be in the same namespace as portworx backup installtion)
+
+images:
+  pullSecrets:
+    - docregistry-secret
+  pullPolicy: Always
+
+  pxcentralApiServerImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: pxcentral-onprem-api
+    tag: 2.2.0
+  pxcentralFrontendImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: pxcentral-onprem-ui-frontend
+    tag: 2.2.0
+  pxcentralBackendImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: pxcentral-onprem-ui-backend
+    tag: 2.2.0
+  pxcentralMiddlewareImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: pxcentral-onprem-ui-lhbackend
+    tag: 2.2.0
+  postInstallSetupImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: pxcentral-onprem-post-setup
+    tag: 2.2.0
+  keycloakBackendImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: postgresql
+    tag: 11.13.0-debian-10-r19
+  keycloakFrontendImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: keycloak
+    tag: 14.0.0-v2
+  keycloakLoginThemeImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: keycloak-login-theme
+    tag: 2.0.1
+  keycloakInitContainerImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: busybox
+    tag: 1.31
+  mysqlImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: mysql
+    tag: 5.7.37
+
+  ## Images required for enabling px-backup
+  pxBackupImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: px-backup
+    tag: 2.2.0
+  mongodbImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: mongodb
+    tag: 4.4.4-debian-10-r30
+
+  ## Images required for enabling px-license-server
+  licenseServerImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: px-els
+    tag: 2.0.1
+
+  ## Images required for enabling px-monitor
+  cortexImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: cortex
+    tag: v1.1.0
+  cassandraImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: cassandra
+    tag: 3.11.6-debian-10-r153
+  proxyConfigImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: nginx
+    tag: 1.21.6
+  consulImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: consul
+    tag: 1.9.5-debian-10-r18
+  dnsmasqImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: go-dnsmasq
+    tag: release-1.0.7
+  grafanaImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: grafana
+    tag: 7.1.3
+  prometheusImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: prometheus
+    tag: v2.29.1
+  prometheusConfigReloadrImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: prometheus-config-reloader
+    tag: v0.50.0
+  prometheusOperatorImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: prometheus-operator
+    tag: v0.50.0
+  memcachedMetricsImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: memcached-exporter
+    tag: v0.9.0
+  memcachedIndexImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: memcached
+    tag: 1.6.15-alpine
+  memcachedImage:
+    registry: gcr.io/portworx-public
+    repo: px-backup
+    imageName: memcached
+    tag: 1.6.15-alpine

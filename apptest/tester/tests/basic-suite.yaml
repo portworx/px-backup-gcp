@@ -1,0 +1,18 @@
+actions:
+- name: Waiting for PX-backup CRDs created
+  bashTest:
+    script: |
+      for deployment in px-backup pxcentral-license-server pxcentral-apiserver pxcentral-backend
+      do
+        until kubectl -n ${NAMESPACE} rollout status deployments | grep "$deployment" | grep "successfully";; do echo "waiting"; done
+      done
+- name: Deleting portworx STC resource
+  bashTest:
+    script: |
+      kubectl -n ${NAMESPACE} delete Deployment/pxcentral-post-install-hook \
+      Job/pxcentral-post-install-hook \
+
+      kubectl delete stc -n ${NAMESPACE} ${CLUSTER_NAME} Job/pxcentral-post-install-hook ServiceAccount/default ServiceAccount/px-keycloak-account ServiceAccount/pxcentral-apiserver Role/px-keycloak-role Role/pxcentral-apiserver RoleBinding/px-keycloak-role-binding RoleBinding/pxcentral-apiserver
+    expect:
+      exitCode:
+        equals: 0
