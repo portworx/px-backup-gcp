@@ -37,7 +37,19 @@ tag_and_push () {
   docker tag $1 $2
   docker push $2
 }
-
+pxcentral-onprem-ui-frontend 2.4.0
+pxcentral-onprem-ui-backend 2.4.0
+pxcentral-onprem-ui-lhbackend 2.4.0
+busybox 1.31
+pxcentral-onprem-api 2.4.0
+pxcentral-onprem-post-setup 2.4.0
+postgresql 11.18.0-debian-11-r34
+keycloak 16.1.1
+keycloak-login-theme 2.2.0
+mysql 5.7.41
+px-backup 2.4.0
+mongodb 5.0.14-debian-11-r27
+kopiaexecutor 1.2.4
 STORK_SOURCE=openstorage/stork:${STORK_VERSION}
 publish_image ${STORK_SOURCE} ${STORK_VERSION} ${PRODUCT_NAME}/stork
 
@@ -47,35 +59,35 @@ publish_image ${SCHEDULER_SOURCE} ${KUBE_VERSION} ${PRODUCT_NAME}/kube-scheduler
 CONTROLLER_MANAGER_SOURCE=k8s.gcr.io/kube-controller-manager-amd64:${KUBE_VERSION}
 publish_image ${CONTROLLER_MANAGER_SOURCE} ${KUBE_VERSION} ${PRODUCT_NAME}/kube-controller-manager-amd64
 
-PXCENTRAL_ONPREM_API_TAG=2.2.0
+PXCENTRAL_ONPREM_API_TAG=2.4.0
 PXCENTRAL_ONPREM_API=portworx/pxcentral-onprem-api:${PXCENTRAL_ONPREM_API_TAG}
 publish_image ${PXCENTRAL_ONPREM_API} ${PXCENTRAL_ONPREM_API_TAG} ${PRODUCT_NAME}/pxcentral-onprem-api
 
-PXCENTRAL_ONPREM_UI_FRONTEND_TAG=2.2.0
+PXCENTRAL_ONPREM_UI_FRONTEND_TAG=2.4.0
 PXCENTRAL_ONPREM_UI_FRONTEND=portworx/pxcentral-onprem-ui-frontend:${PXCENTRAL_ONPREM_UI_FRONTEND_TAG}
 publish_image ${PXCENTRAL_ONPREM_UI_FRONTEND} ${PXCENTRAL_ONPREM_UI_FRONTEND_TAG} ${PRODUCT_NAME}/pxcentral-onprem-ui-frontend
 
-PXCENTRAL_ONPREM_UI_BACKEND_TAG=2.2.0
+PXCENTRAL_ONPREM_UI_BACKEND_TAG=2.4.0
 PXCENTRAL_ONPREM_UI_BACKEND=portworx/pxcentral-onprem-ui-backend:${PXCENTRAL_ONPREM_UI_BACKEND_TAG}
 publish_image ${PXCENTRAL_ONPREM_UI_BACKEND} ${PXCENTRAL_ONPREM_UI_BACKEND_TAG} ${PRODUCT_NAME}/pxcentral-onprem-ui-backend
 
-PXCENTRAL_ONPREM_UI_LHBACKEND_TAG=2.2.0
+PXCENTRAL_ONPREM_UI_LHBACKEND_TAG=2.4.0
 PXCENTRAL_ONPREM_UI_LHBACKEND=portworx/pxcentral-onprem-ui-lhbackend:${PXCENTRAL_ONPREM_UI_LHBACKEND_TAG}
 publish_image ${PXCENTRAL_ONPREM_UI_LHBACKEND} ${PXCENTRAL_ONPREM_UI_LHBACKEND_TAG} ${PRODUCT_NAME}/pxcentral-onprem-ui-lhbackend
 
-PXCENTRAL_ONPREM_POST_SETUP_TAG=2.2.0
+PXCENTRAL_ONPREM_POST_SETUP_TAG=2.4.0
 PXCENTRAL_ONPREM_POST_SETUP=portworx/pxcentral-onprem-post-setup:${PXCENTRAL_ONPREM_POST_SETUP_TAG}
 publish_image ${PXCENTRAL_ONPREM_POST_SETUP} ${PXCENTRAL_ONPREM_POST_SETUP_TAG} ${PRODUCT_NAME}/pxcentral-onprem-post-setup
 
-POSTGRESQL_TAG=11.13.0-debian-10-r19
+POSTGRESQL_TAG=11.18.0-debian-11-r34
 POSTGRESQL=portworx/postgresql:${POSTGRESQL_TAG}
 publish_image ${POSTGRESQL} ${POSTGRESQL_TAG} ${PRODUCT_NAME}/postgresql
 
-KEYCLOAK_TAG=14.0.0-v2
+KEYCLOAK_TAG=16.1.1
 KEYCLOAK=portworx/keycloak:${KEYCLOAK_TAG}
 publish_image ${KEYCLOAK} ${KEYCLOAK_TAG} ${PRODUCT_NAME}/keycloak
 
-KEYCLOAK_LOGIN_THEME_TAG=2.0.1
+KEYCLOAK_LOGIN_THEME_TAG=2.2.0
 KEYCLOAK_LOGIN_THEME=portworx/keycloak-login-theme:${KEYCLOAK_LOGIN_THEME_TAG}
 publish_image ${KEYCLOAK_LOGIN_THEME} ${KEYCLOAK_LOGIN_THEME_TAG} ${PRODUCT_NAME}/keycloak-login-theme
 
@@ -83,15 +95,15 @@ BUSYBOX_TAG=1.31
 BUSYBOX=portworx/busybox:${BUSYBOX_TAG}
 publish_image ${BUSYBOX} ${BUSYBOX_TAG} ${PRODUCT_NAME}/busybox
 
-MYSQL_TAG=5.7.37
+MYSQL_TAG=5.7.41
 MYSQL=portworx/mysql:${MYSQL_TAG}
 publish_image ${MYSQL} ${MYSQL_TAG} ${PRODUCT_NAME}/mysql
 
-PX_BACKUP_TAG=2.2.0
+PX_BACKUP_TAG=2.4.0
 PX_BACKUP=portworx/px-backup:${PX_BACKUP_TAG}
 publish_image ${PX_BACKUP} ${PX_BACKUP_TAG} ${PRODUCT_NAME}/px-backup
 
-MONGODB_TAG=4.4.4-debian-10-r30
+MONGODB_TAG=5.0.14-debian-11-r27
 MONGODB=portworx/mongodb:${MONGODB_TAG}
 publish_image ${MONGODB} ${MONGODB_TAG} ${PRODUCT_NAME}/mongodb
 
