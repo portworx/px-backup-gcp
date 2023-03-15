@@ -2,6 +2,7 @@
 {{- $pxBackupEnabled := .Values.pxbackup.enabled | default false }}
 {{- $isOpenshiftCluster := .Capabilities.APIVersions.Has "apps.openshift.io/v1" -}}
 {{- $reportingSecret := .Values.reportingSecret | default "none"}}
+{{- $reportingLogDir := "/var/lib/osd/log/metering"}}
 {{- if eq $pxBackupEnabled true }}
 apiVersion: v1
 kind: ServiceAccount
@@ -181,6 +182,8 @@ spec:
           value: mongodb
         - name: "REPORTING_SECRET"
           value: {{ .Values.reportingSecret | quote}}
+        - name: "REPORTING_LOG_DIR"
+          value: {{ $reportingLogDir }}
         - name: "REPORTING_SECRET_NAMESPACE"
           value: {{ template "px-central.getDeploymentNamespace" . }}
         - name: "PRODUCT_PLAN_ID"
@@ -214,14 +217,20 @@ spec:
           - mountPath: /tmp/certs
             readOnly: true
             name: ssl-cert-dir
+          - name: reporting-log-dir
+            hostPath:
+              path: {{ $reportingLogDir }}
         {{- end }}
         command:
         - /px-backup
         - start
         - --datastoreEndpoints=mongodb://pxbackup:Password1@pxc-backup-mongodb-0.pxc-backup-mongodb-headless:27017,pxc-backup-mongodb-1.pxc-backup-mongodb-headless:27017,pxc-backup-mongodb-2.pxc-backup-mongodb-headless:27017/?authSource=px-backup&replicaSet=rs0
         - --mongo-migration={{.Values.pxbackup.mongoMigration}}
-      {{- if .Values.caCertsSecretName }}
       volumes:
+        - name: reporting-log-dir
+          hostPath:
+            path: {{ $reportingLogDir }}
+      {{- if .Values.caCertsSecretName }}
         - name: ssl-cert-dir
           secret:
             defaultMode: 420
