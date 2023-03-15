@@ -45,7 +45,7 @@ postInstallJob:
   sslEnabled: true
 
 pxbackup:
-  enabled: false
+  enabled: true
   orgName: default
   callHome: true
   mongoMigration: complete

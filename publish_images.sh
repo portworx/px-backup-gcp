@@ -37,19 +37,6 @@ tag_and_push () {
   docker tag $1 $2
   docker push $2
 }
-pxcentral-onprem-ui-frontend 2.4.0
-pxcentral-onprem-ui-backend 2.4.0
-pxcentral-onprem-ui-lhbackend 2.4.0
-busybox 1.31
-pxcentral-onprem-api 2.4.0
-pxcentral-onprem-post-setup 2.4.0
-postgresql 11.18.0-debian-11-r34
-keycloak 16.1.1
-keycloak-login-theme 2.2.0
-mysql 5.7.41
-px-backup 2.4.0
-mongodb 5.0.14-debian-11-r27
-kopiaexecutor 1.2.4
 STORK_SOURCE=openstorage/stork:${STORK_VERSION}
 publish_image ${STORK_SOURCE} ${STORK_VERSION} ${PRODUCT_NAME}/stork
 
