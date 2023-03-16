@@ -129,114 +129,6 @@ x-google-marketplace:
           type: REPO_WITHOUT_REGISTRY
         images.mongodbImage.tag: 
           type: TAG
-
-    ## Images required for enabling px-license-server
-    px-els:
-      properties:
-        images.licenseServerImage.registry:
-          type: REGISTRY
-        images.licenseServerImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.licenseServerImage.tag: 
-          type: TAG
-
-    ## Images required for enabling px-monitor
-    cortex:
-      properties:
-        images.cortexImage.registry:
-          type: REGISTRY
-        images.cortexImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.cortexImage.tag: 
-          type: TAG
-    cassandra:
-      properties:
-        images.cassandraImage.registry:
-          type: REGISTRY
-        images.cassandraImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.cassandraImage.tag: 
-          type: TAG
-    nginx:
-      properties:
-        images.proxyConfigImage.registry:
-          type: REGISTRY
-        images.proxyConfigImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.proxyConfigImage.tag: 
-          type: TAG
-    consul:
-      properties:
-        images.consulImage.registry:
-          type: REGISTRY
-        images.consulImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.consulImage.tag: 
-          type: TAG
-    go-dnsmasq:
-      properties:
-        images.dnsmasqImage.registry:
-          type: REGISTRY
-        images.dnsmasqImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.dnsmasqImage.tag: 
-          type: TAG
-    grafana:
-      properties:
-        images.grafanaImage.registry:
-          type: REGISTRY
-        images.grafanaImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.grafanaImage.tag: 
-          type: TAG
-    prometheus:
-      properties:
-        images.prometheusImage.registry:
-          type: REGISTRY
-        images.prometheusImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.prometheusImage.tag: 
-          type: TAG
-    prometheus-config-reloader:
-      properties:
-        images.prometheusConfigReloadrImage.registry:
-          type: REGISTRY
-        images.prometheusConfigReloadrImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.prometheusConfigReloadrImage.tag: 
-          type: TAG
-    prometheus-operator:
-      properties:
-        images.prometheusOperatorImage.registry:
-          type: REGISTRY
-        images.prometheusOperatorImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.prometheusOperatorImage.tag: 
-          type: TAG
-    memcached-exporter:
-      properties:
-        images.memcachedMetricsImage.registry:
-          type: REGISTRY
-        images.memcachedMetricsImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.memcachedMetricsImage.tag: 
-          type: TAG
-    memcached:
-      properties:
-        images.memcachedIndexImage.registry:
-          type: REGISTRY
-        images.memcachedIndexImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.memcachedIndexImage.tag: 
-          type: TAG
-
-        images.memcachedImage.registry:
-          type: REGISTRY
-        images.memcachedImage.repo:
-          type: REPO_WITHOUT_REGISTRY
-        images.memcachedImage.tag: 
-          type: TAG
-
     
     
   deployerServiceAccount:
@@ -567,73 +459,73 @@ properties:
     type: string
     default: |
       {}
-  service.grafanaServiceType: 
-    title: Grafana Service Type
-    description: Grafana Service Type
-    type: string
-    default: "NodePort"
-  service.cortexNginxServiceType: 
-    title: Cortex Nginx Service Type
-    description: Cortex Nginx Service Type
-    type: string
-    default: "NodePort"
+  # # service.grafanaServiceType: 
+  #   title: Grafana Service Type
+  #   description: Grafana Service Type
+  #   type: string
+  #   default: "NodePort"
+  # service.cortexNginxServiceType: 
+  # title: Cortex Nginx Service Type
+  # description: Cortex Nginx Service Type
+  # type: string
+  # default: "NodePort"
 
   # cassandra
-  cassandra.jvm.maxHeapSize:
-    title: Cassandra JVM max heap size
-    description: |
-      Memory settings: These are calculated automatically unless specified otherwise
-      To run on environments with little resources (<= 8GB), tune your heap settings:
-      maxHeapSize:
-      - calculate 1/2 ram and cap to 1024MB
-      - calculate 1/4 ram and cap to 8192MB
-      - pick the max
-      newHeapSize:
-      A good guideline is 100 MB per CPU core.
-      - min(100 * num_cores, 1/4 * heap size)
+  # cassandra.jvm.maxHeapSize:
+  #   title: Cassandra JVM max heap size
+  #   description: |
+  #     Memory settings: These are calculated automatically unless specified otherwise
+  #     To run on environments with little resources (<= 8GB), tune your heap settings:
+  #     maxHeapSize:
+  #     - calculate 1/2 ram and cap to 1024MB
+  #     - calculate 1/4 ram and cap to 8192MB
+  #     - pick the max
+  #     newHeapSize:
+  #     A good guideline is 100 MB per CPU core.
+  #     - min(100 * num_cores, 1/4 * heap size)
       
-      maxHeapSize: 4G
-      newHeapSize: 800M
-    type: string
-    default: ""
-  cassandra.jvm.newHeapSize:
-    title: Cassandra JVM new heap size
-    description: |
-      Memory settings: These are calculated automatically unless specified otherwise
-      To run on environments with little resources (<= 8GB), tune your heap settings:
-      maxHeapSize:
-      - calculate 1/2 ram and cap to 1024MB
-      - calculate 1/4 ram and cap to 8192MB
-      - pick the max
-      newHeapSize:
-      A good guideline is 100 MB per CPU core.
-      - min(100 * num_cores, 1/4 * heap size)
+  #     maxHeapSize: 4G
+  #     newHeapSize: 800M
+  #   type: string
+  #   default: ""
+  # cassandra.jvm.newHeapSize:
+  #   title: Cassandra JVM new heap size
+  #   description: |
+  #     Memory settings: These are calculated automatically unless specified otherwise
+  #     To run on environments with little resources (<= 8GB), tune your heap settings:
+  #     maxHeapSize:
+  #     - calculate 1/2 ram and cap to 1024MB
+  #     - calculate 1/4 ram and cap to 8192MB
+  #     - pick the max
+  #     newHeapSize:
+  #     A good guideline is 100 MB per CPU core.
+  #     - min(100 * num_cores, 1/4 * heap size)
       
-      maxHeapSize: 4G
-      newHeapSize: 800M
-    type: string
-    default: ""
+  #     maxHeapSize: 4G
+  #     newHeapSize: 800M
+  #   type: string
+  #   default: ""
 
-  installCRDs:
-    title: Install metrics stack required CRDs
-    description: Install metrics stack required CRDs
-    type: boolean
-    default: false
-  clusterDomain:
-    title: Cluster domain
-    description: Cluster domain
-    type: string
-    default: "cluster.local"
-  cassandraUsername:
-    title: Cassandra cluster username
-    description: Cassandra cluster username
-    type: string
-    default: "cassandra"
-  cassandraPassword:
-    title: Cassandra cluster password
-    description: Cassandra cluster password
-    type: string
-    default: "cassandra"
+  # installCRDs:
+  #   title: Install metrics stack required CRDs
+  #   description: Install metrics stack required CRDs
+  #   type: boolean
+  #   default: false
+  # clusterDomain:
+  #   title: Cluster domain
+  #   description: Cluster domain
+  #   type: string
+  #   default: "cluster.local"
+  # cassandraUsername:
+  #   title: Cassandra cluster username
+  #   description: Cassandra cluster username
+  #   type: string
+  #   default: "cassandra"
+  # cassandraPassword:
+  #   title: Cassandra cluster password
+  #   description: Cassandra cluster password
+  #   type: string
+  #   default: "cassandra"
 
   operatorToChartUpgrade:
     title: Operator To Chart Upgrade
@@ -710,17 +602,17 @@ required:
 # - pxmonitor.consulBindInterface
 # - pxmonitor.cortex.alertmanager.advertiseAddress
 - service.pxCentralUIServiceType 
-# - service.pxCentralUIServiceAnnotations 
+- service.pxCentralUIServiceAnnotations 
 - service.pxBackupUIServiceType 
-# - service.pxBackupUIServiceAnnotations 
-- service.grafanaServiceType 
-- service.cortexNginxServiceType 
-- cassandra.jvm.maxHeapSize
-- cassandra.jvm.newHeapSize
-- installCRDs
-- clusterDomain
-- cassandraUsername
-- cassandraPassword
+- service.pxBackupUIServiceAnnotations 
+# - service.grafanaServiceType 
+# - service.cortexNginxServiceType 
+# - cassandra.jvm.maxHeapSize
+# - cassandra.jvm.newHeapSize
+# - installCRDs
+# - clusterDomain
+# - cassandraUsername
+# - cassandraPassword
 - operatorToChartUpgrade
 - securityContext.runAsUser
 - securityContext.fsGroup
