@@ -7,7 +7,7 @@ DEPLOYER_PATCH_VERSION=2.12.0
 
 BASE_DEST_PATH=gcr.io/${GCR_REPO}
 PRODUCT_NAME=px-backup
-SCHEMA_VERSION=2.4.0
+SCHEMA_VERSION=2.4.1
 
 echo "Using the following versions:"
 echo "    PX: ${PX_VERSION}"

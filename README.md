@@ -2,7 +2,6 @@
 
 ### Build the deployer container:
 ```
-export DOCKERHUB_REPO=yourrepo
 make container
 ```
 
