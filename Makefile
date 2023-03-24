@@ -24,8 +24,8 @@ deploy:
 install:
 	kubectl create ns pxb --dry-run=client -o yaml | kubectl apply -f -
 	MARKETPLACE_TOOLS_TAG=$(MARKETPLACE_TOOLS_TAG) mpdev install \
-	  --deployer=$(DEPLOYER_IMG) \
-	   --parameters='{"name": "pxcentral", "namespace": "pxb"}'
+	  --deployer=$(DEPLOYER_RELEASE_IMG) \
+	   --parameters='{"name": "pxcentral", "namespace": "pxb", "persistentStorage.storageClassName": "standard","reportingSecret": "ptest"}'
 uninstall:
 	kubectl -n pxb delete application pxcentral
 	kubectl delete namespace pxb

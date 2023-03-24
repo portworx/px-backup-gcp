@@ -175,9 +175,9 @@ properties:
   # persistentStorage
   persistentStorage.storageClassName:
     title: Storage Class Name
-    description: Provide storage class name which exists
+    description: Provide storage class name which exists on the cluster, for anthos please refer https://backup.docs.portworx.com/
     type: string
-    default: ""
+    default: "standard"
 
 required:
 - name
