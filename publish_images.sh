@@ -86,8 +86,8 @@ MYSQL_TAG=5.7.41
 MYSQL=portworx/mysql:${MYSQL_TAG}
 publish_image ${MYSQL} ${MYSQL_TAG} ${PRODUCT_NAME}/mysql
 
-PX_BACKUP_TAG=2.4.0
-PX_BACKUP=portworx/px-backup:${PX_BACKUP_TAG}
+PX_BACKUP_TAG=2.4.1-dev
+PX_BACKUP=portworx/px-backup-base:${PX_BACKUP_TAG}
 publish_image ${PX_BACKUP} ${PX_BACKUP_TAG} ${PRODUCT_NAME}/px-backup
 
 MONGODB_TAG=5.0.14-debian-11-r27
