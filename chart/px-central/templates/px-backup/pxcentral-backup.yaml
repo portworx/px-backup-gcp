@@ -212,14 +212,13 @@ spec:
           initialDelaySeconds: {{ .Values.pxbackup.livenessProbeInitialDelay }}
           timeoutSeconds: 1
           periodSeconds: 60
-        {{- if .Values.caCertsSecretName }}  
         volumeMounts:
+          - name: reporting-log-dir
+            mountPath: {{ $reportingLogDir }}
+        {{- if .Values.caCertsSecretName }}  
           - mountPath: /tmp/certs
             readOnly: true
             name: ssl-cert-dir
-          - name: reporting-log-dir
-            hostPath:
-              path: {{ $reportingLogDir }}
         {{- end }}
         command:
         - /px-backup
@@ -228,8 +227,8 @@ spec:
         - --mongo-migration={{.Values.pxbackup.mongoMigration}}
       volumes:
         - name: reporting-log-dir
-          hostPath:
-            path: {{ $reportingLogDir }}
+          persistentVolumeClaim:
+            claimName: pxcentral-reporting-log-dir
       {{- if .Values.caCertsSecretName }}
         - name: ssl-cert-dir
           secret:
