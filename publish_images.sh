@@ -90,6 +90,10 @@ PX_BACKUP_TAG=2.4.1-dev
 PX_BACKUP=portworx/px-backup-base:${PX_BACKUP_TAG}
 publish_image ${PX_BACKUP} ${PX_BACKUP_TAG} ${PRODUCT_NAME}/px-backup
 
+KOPIAEXECUTOR_TAG=1.2.5
+KOPIAEXECUTOR=portworx/kopiaexecutor:${KOPIAEXECUTOR_TAG}
+publish_image ${KOPIAEXECUTOR} ${KOPIAEXECUTOR_TAG} ${PRODUCT_NAME}/kopiaexecutor
+
 MONGODB_TAG=5.0.14-debian-11-r27
 MONGODB=portworx/mongodb:${MONGODB_TAG}
 publish_image ${MONGODB} ${MONGODB_TAG} ${PRODUCT_NAME}/mongodb
