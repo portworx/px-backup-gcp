@@ -126,37 +126,37 @@ images:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-api
-    tag: 2.4.0
+    tag: 2.5.0
   pxcentralFrontendImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-frontend
-    tag: 2.4.0
+    tag: 2.5.0
   pxcentralBackendImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-backend
-    tag: 2.4.0
+    tag: 2.5.0
   pxcentralMiddlewareImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-lhbackend
-    tag: 2.4.0
+    tag: 2.5.0
   postInstallSetupImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-post-setup
-    tag: 2.4.0
+    tag: 2.5.0
   keycloakBackendImage:
     registry: docker.io
     repo: portworx
     imageName: postgresql
-    tag: 11.18.0-debian-11-r34
+    tag: 11.19.0-debian-11-r1
   keycloakFrontendImage:
     registry: docker.io
     repo: portworx
     imageName: keycloak
-    tag: 16.1.1
+    tag: 21.1.1
   keycloakLoginThemeImage:
     registry: docker.io
     repo: portworx
@@ -178,7 +178,7 @@ images:
     registry: docker.io
     repo: portworx
     imageName: px-backup
-    tag: 2.4.1
+    tag: 2.5.0
   mongodbImage:
     registry: docker.io
     repo: portworx
@@ -207,7 +207,7 @@ images:
     registry: docker.io
     repo: portworx
     imageName: nginx
-    tag: 1.23.2-alpine
+    tag: 1.23.3-alpine
   consulImage:
     registry: docker.io
     repo: portworx
@@ -222,7 +222,7 @@ images:
     registry: docker.io
     repo: portworx
     imageName: grafana
-    tag: 9.1.2
+    tag: 9.1.3
   prometheusImage:
     registry: docker.io
     repo: portworx
