@@ -10,7 +10,7 @@ metadata:
 spec:
   descriptor:
     type: Portworx Backup
-    version: '2.5.0-dev'
+    version: '2.5.0'
   selector:
     matchLabels:
       app.kubernetes.io/name: "{{ .Release.Name }}"
