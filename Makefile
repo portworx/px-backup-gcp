@@ -1,7 +1,7 @@
 DOCKER_HUB_REPO ?= gcr.io/portworx-public/px-backup
 DOCKER_HUB_DEPLOYER_IMAGE ?= deployer
 # DOCKER_HUB_DEPLOYER_RELEASE_TAG ?= 2.5.0
-DOCKER_HUB_DEPLOYER_TAG ?= 2.5.0-dev
+DOCKER_HUB_DEPLOYER_TAG ?= 2.5.0
 MARKETPLACE_TOOLS_TAG ?= latest
 GS_BUCKET ?= gs://portworx-public/portworx/portworx-backup
 GS_VERSION ?= 2.5.0
@@ -24,8 +24,8 @@ deploy:
 install:
 	kubectl create ns pxb --dry-run=client -o yaml | kubectl apply -f -
 	MARKETPLACE_TOOLS_TAG=$(MARKETPLACE_TOOLS_TAG) mpdev install \
-	  --deployer=$(DEPLOYER_RELEASE_IMG) \
-	   --parameters='{"name": "pxcentral", "namespace": "pxb", "persistentStorage.storageClassName": "standard","reportingSecret": "ptest"}'
+	  --deployer=$(DEPLOYER_IMG) \
+	  --parameters='{"name": "pxcentral", "namespace": "pxb", "persistentStorage.storageClassName": "standard","reportingSecret": "ptest"}'
 uninstall:
 	kubectl -n pxb delete application pxcentral
 	kubectl delete namespace pxb
@@ -46,8 +46,6 @@ verify:
 	mpdev verify \
 	--deployer=$(DEPLOYER_IMG) \
 	--wait_timeout=$(WAIT_TIMEOUT)
-lint:
-	helm lint chart/portworx
 
 publish-images:
 	./publish_images.sh

@@ -1,12 +1,12 @@
-STORK_VERSION=23.6-dev
+STORK_VERSION=23.6.0
 KUBE_VERSION=v1.25.1
 GCR_REPO=portworx-public
 DEPLOYER_MINOR_VERSION=2.5
-DEPLOYER_PATCH_VERSION=2.5.0-dev
+DEPLOYER_PATCH_VERSION=2.5.0
 
 BASE_DEST_PATH=gcr.io/${GCR_REPO}
 PRODUCT_NAME=px-backup
-SCHEMA_VERSION=2.5.0-dev
+SCHEMA_VERSION=2.5.0
 
 echo "Using the following versions:"
 echo "    PX: ${PX_VERSION}"
@@ -17,7 +17,7 @@ echo "Pushing to ${BASE_DEST_PATH}/${PRODUCT_NAME}"
 
 publish_image () {
   source_path=$1
-  image_tag=$SCHEMA_VERSION
+  image_tag=$2
   destination_image=$3
 
   echo "======================================================================"
@@ -45,24 +45,24 @@ publish_image ${SCHEDULER_SOURCE} ${KUBE_VERSION} ${PRODUCT_NAME}/kube-scheduler
 CONTROLLER_MANAGER_SOURCE=k8s.gcr.io/kube-controller-manager-amd64:${KUBE_VERSION}
 publish_image ${CONTROLLER_MANAGER_SOURCE} ${KUBE_VERSION} ${PRODUCT_NAME}/kube-controller-manager-amd64
 
-PXCENTRAL_ONPREM_API_TAG=2.5.0-dev
-PXCENTRAL_ONPREM_API=portworx/pxcentral-onprem-api-base:${PXCENTRAL_ONPREM_API_TAG}
+PXCENTRAL_ONPREM_API_TAG=2.5.0
+PXCENTRAL_ONPREM_API=portworx/pxcentral-onprem-api:${PXCENTRAL_ONPREM_API_TAG}
 publish_image ${PXCENTRAL_ONPREM_API} ${PXCENTRAL_ONPREM_API_TAG} ${PRODUCT_NAME}/pxcentral-onprem-api
 
-PXCENTRAL_ONPREM_UI_FRONTEND_TAG=2.5.0-dev
-PXCENTRAL_ONPREM_UI_FRONTEND=portworx/pxcentral-onprem-ui-frontend-private:${PXCENTRAL_ONPREM_UI_FRONTEND_TAG}
+PXCENTRAL_ONPREM_UI_FRONTEND_TAG=2.5.0
+PXCENTRAL_ONPREM_UI_FRONTEND=portworx/pxcentral-onprem-ui-frontend:${PXCENTRAL_ONPREM_UI_FRONTEND_TAG}
 publish_image ${PXCENTRAL_ONPREM_UI_FRONTEND} ${PXCENTRAL_ONPREM_UI_FRONTEND_TAG} ${PRODUCT_NAME}/pxcentral-onprem-ui-frontend
 
-PXCENTRAL_ONPREM_UI_BACKEND_TAG=2.5.0-dev
-PXCENTRAL_ONPREM_UI_BACKEND=portworx/pxcentral-onprem-ui-backend-private:${PXCENTRAL_ONPREM_UI_BACKEND_TAG}
+PXCENTRAL_ONPREM_UI_BACKEND_TAG=2.5.0
+PXCENTRAL_ONPREM_UI_BACKEND=portworx/pxcentral-onprem-ui-backend:${PXCENTRAL_ONPREM_UI_BACKEND_TAG}
 publish_image ${PXCENTRAL_ONPREM_UI_BACKEND} ${PXCENTRAL_ONPREM_UI_BACKEND_TAG} ${PRODUCT_NAME}/pxcentral-onprem-ui-backend
 
-PXCENTRAL_ONPREM_UI_LHBACKEND_TAG=2.5.0-dev
-PXCENTRAL_ONPREM_UI_LHBACKEND=portworx/pxcentral-onprem-ui-lhbackend-private:${PXCENTRAL_ONPREM_UI_LHBACKEND_TAG}
+PXCENTRAL_ONPREM_UI_LHBACKEND_TAG=2.5.0
+PXCENTRAL_ONPREM_UI_LHBACKEND=portworx/pxcentral-onprem-ui-lhbackend:${PXCENTRAL_ONPREM_UI_LHBACKEND_TAG}
 publish_image ${PXCENTRAL_ONPREM_UI_LHBACKEND} ${PXCENTRAL_ONPREM_UI_LHBACKEND_TAG} ${PRODUCT_NAME}/pxcentral-onprem-ui-lhbackend
 
-PXCENTRAL_ONPREM_POST_SETUP_TAG=2.5.0-dev
-PXCENTRAL_ONPREM_POST_SETUP=portworx/pxcentral-onprem-post-setup-base:${PXCENTRAL_ONPREM_POST_SETUP_TAG}
+PXCENTRAL_ONPREM_POST_SETUP_TAG=2.5.0
+PXCENTRAL_ONPREM_POST_SETUP=portworx/pxcentral-onprem-post-setup:${PXCENTRAL_ONPREM_POST_SETUP_TAG}
 publish_image ${PXCENTRAL_ONPREM_POST_SETUP} ${PXCENTRAL_ONPREM_POST_SETUP_TAG} ${PRODUCT_NAME}/pxcentral-onprem-post-setup
 
 POSTGRESQL_TAG=11.19.0-debian-11-r1
@@ -85,8 +85,8 @@ MYSQL_TAG=5.7.41
 MYSQL=portworx/mysql:${MYSQL_TAG}
 publish_image ${MYSQL} ${MYSQL_TAG} ${PRODUCT_NAME}/mysql
 
-PX_BACKUP_TAG=2.5.0-dev
-PX_BACKUP=portworx/px-backup-base:${PX_BACKUP_TAG}
+PX_BACKUP_TAG=2.5.0
+PX_BACKUP=portworx/px-backup:${PX_BACKUP_TAG}
 publish_image ${PX_BACKUP} ${PX_BACKUP_TAG} ${PRODUCT_NAME}/px-backup
 
 KOPIAEXECUTOR_TAG=1.2.6
