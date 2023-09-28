@@ -9,10 +9,10 @@ x-google-marketplace:
 
   # The release version is required in the schema and MUST match the
   # release tag on the the deployer.
-  publishedVersion: '2.5.0'
+  publishedVersion: '2.5.1'
   publishedVersionMetadata:
     releaseNote: >-
-      Release notes can be found here: https://docs.portworx.com/reference/release-notes/portworx/#2-7-2-1
+      Release notes can be found here: https://backup.docs.portworx.com/release-notes/
     # releaseTypes list is optional.
     releaseTypes:
     - Feature

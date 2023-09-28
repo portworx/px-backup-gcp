@@ -34,7 +34,6 @@ oidc:
     keyCloakBackendPassword: keycloak
     clientId: "pxcentral"
     updateAdminProfile: true
-    clientSecret: ""
 
   externalOIDC:
     enabled: false
@@ -46,7 +45,7 @@ postInstallJob:
   sslEnabled: true
 
 pxbackup:
-  enabled: true
+  enabled: false
   orgName: default
   callHome: true
   mongoMigration: complete
@@ -117,6 +116,17 @@ securityContext:
   fsGroup: 1000
   runAsNonRoot: true
 
+## sample toleration while installing from values.yaml
+# tolerations:
+# - effect: NoSchedule
+#   key: key1
+#   operator: Exists
+#
+## sample toleration while setting the param inline
+# --set 'tolerations[0].operator=Exists,tolerations[0].effect=NoSchedule,tolerations[0].key=key1'
+# ensure toleration param is enclosed with single quotes
+tolerations: []
+
 reportingSecret:                  # Name of reporting secret for GCP marketplace. (Needs to be in the same namespace as portworx backup installtion)
 
 images:
@@ -128,27 +138,27 @@ images:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-api
-    tag: 2.5.0
+    tag: 2.5.1
   pxcentralFrontendImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-frontend
-    tag: 2.5.0
+    tag: 2.5.1
   pxcentralBackendImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-backend
-    tag: 2.5.0
+    tag: 2.5.1
   pxcentralMiddlewareImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-lhbackend
-    tag: 2.5.0
+    tag: 2.5.1
   postInstallSetupImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-post-setup
-    tag: 2.5.0
+    tag: 2.5.1
   keycloakBackendImage:
     registry: docker.io
     repo: portworx
@@ -176,11 +186,12 @@ images:
     tag: 5.7.41
 
   ## Images required for enabling px-backup
+
   pxBackupImage:
     registry: docker.io
     repo: portworx
     imageName: px-backup
-    tag: 2.5.0
+    tag: 2.5.1
   mongodbImage:
     registry: docker.io
     repo: portworx
@@ -209,7 +220,7 @@ images:
     registry: docker.io
     repo: portworx
     imageName: nginx
-    tag: 1.23.3-alpine
+    tag: 1.23.3-alpine-slim
   consulImage:
     registry: docker.io
     repo: portworx
