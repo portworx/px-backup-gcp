@@ -3,6 +3,7 @@
 {{- $isOpenshiftCluster := .Capabilities.APIVersions.Has "apps.openshift.io/v1" -}}
 {{- $reportingSecret := .Values.reportingSecret | default "none"}}
 {{- $reportingLogDir := "/tmp/reports"}}
+{{- $nfsEnabled := .Values.pxbackup.nfs.enabled | default false }}
 {{- if eq $pxBackupEnabled true }}
 apiVersion: v1
 kind: ServiceAccount
@@ -31,6 +32,14 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list"]
+{{- if eq $nfsEnabled true }}
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["create", "update", "get", "patch", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["delete"]
+{{- end }}
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -79,6 +88,20 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list"]
+{{- if eq $nfsEnabled true }}
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "create", "delete", "update", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list"]
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -188,6 +211,10 @@ spec:
           value: {{ template "px-central.getDeploymentNamespace" . }}
         - name: "PRODUCT_PLAN_ID"
           value: {{ .Values.product_plan}}
+        - name: SOFT_LICENSING_PERIOD
+          value: "30"
+        - name: AIRGAP_REPORTING_PERIOD
+          value: "90"
         {{- if .Values.caCertsSecretName }}
         - name: SSL_CERT_DIR
           value: /tmp/certs
@@ -215,7 +242,7 @@ spec:
         volumeMounts:
           - name: reporting-log-dir
             mountPath: {{ $reportingLogDir }}
-        {{- if .Values.caCertsSecretName }}  
+        {{- if .Values.caCertsSecretName }}
           - mountPath: /tmp/certs
             readOnly: true
             name: ssl-cert-dir
@@ -235,12 +262,16 @@ spec:
             defaultMode: 420
             secretName: "{{ .Values.caCertsSecretName }}"
       {{- end }}
-      serviceAccountName: {{ .Values.pxBackupServiceAccount }}
+      serviceAccountName: px-backup-account
       {{- if .Values.images.pullSecrets }}
       imagePullSecrets:
         {{- range $sec := .Values.images.pullSecrets }}
         - name: {{ $sec | quote }}
         {{- end }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if $isOpenshiftCluster}}
       {{- else }}
