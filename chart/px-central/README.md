@@ -61,7 +61,7 @@ $ kubectl delete ns central
   To upgrade px-central:
 
   1. helm repo update
-  
+
   2. helm get values --namespace central px-central -o yaml > values.yaml
 
   3. Delete post install job: `kubectl delete job -n central pxcentral-post-install-hook`
@@ -89,7 +89,7 @@ $ kubectl delete ns central
 
 1. Create the following spec:
 ```
-cat <<< ' 
+cat <<< '
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -149,7 +149,7 @@ $ kubectl get ingress px-central-ui-ingress --namespace central -o jsonpath="{.s
 
 ### Access PX-Central UI using Loadbalancer Endpoint:
 1. Get the loadbalancer endpoint (LB_ENDPOINT) using following commands:
-   - HOST: 
+   - HOST:
    ```console
    $ kubectl get ingress --namespace {{ .Release.Namespace }} px-central-ui -o jsonpath="{.status.loadBalancer.ingress[0].hostname}"`
    ```
@@ -157,7 +157,7 @@ $ kubectl get ingress px-central-ui-ingress --namespace central -o jsonpath="{.s
    ```console
    $ kubectl get ingress --namespace {{ .Release.Namespace }} px-central-ui -o jsonpath="{.status.loadBalancer.ingress[0].ip}"`
    ```
-  
+
 2. PX-Central UI endpoint: `http://LB_ENDPOINT`
 
 3. Keycloak UI endpoint: `http://LB_ENDPOINT/auth`
@@ -265,7 +265,7 @@ metadata:
 2. Pass the secret name to chart using flag: `--set caCertsSecretName=<SECRET_NAME>`
 
 ### Expose PX-Central UI on openshift routes and access using http and https:
-1. Create single route with hostname and path: `/` and point it to `px-central-ui` service. 
+1. Create single route with hostname and path: `/` and point it to `px-central-ui` service.
 2. Access PX-Central UI using route endpoint.
 Note: Keycloak auth and Grafana UI will be accessible on same endpoint on different paths: `/auth` and `/grafana`.
 
@@ -289,7 +289,7 @@ By default PX-Monitor remains disabled with px-central installation.
 Note:
 
 - To fetch `PX_CENTRAL_UI_ENDPOINT`:
-   - External IP of `px-central-ui` service 
+   - External IP of `px-central-ui` service
    - `px-central-ui` ingress host or address
 
 ## Enabling PX-Monitor
@@ -425,7 +425,7 @@ $ kubectl label node <NODE_NAME> px/ls=true
 ```
 - For openshift cluster:
 1. Edit `privileged` scc using command : `oc edit scc privileged` and add following into `users` section : `- system:serviceaccount:<PX_BACKUP_NAMESPACE>:pxcentral-license-server` change the PX_BACKUP_NAMESPACE.
-2. Enable SSH access on port 7070, To configure same add following into worker nodes where `px/ls=true` label is set: 
+2. Enable SSH access on port 7070, To configure same add following into worker nodes where `px/ls=true` label is set:
    - `-A INPUT -p tcp -m state --state NEW -m tcp --dport 7070 -j ACCEPT` in `/etc/sysconfig/iptables` file
    - Restart iptables service: `systemctl restart iptables.service`
 
@@ -442,7 +442,7 @@ $ kubectl label node <NODE_NAME> px/ls=true
     ```console
     $ helm install --name px-central portworx/px-central --namespace central --set pxlicenseserver.enabled=true
     ```
-  
+
   ### To enable PX-License-Server on already deployed px-central
 
   1. helm get values --namespace central px-central -o yaml > values.yaml
@@ -518,43 +518,43 @@ Parameter | Description | Default
 `images.pxcentralApiServerImage.registry` | API server image registry | `docker.io`
 `images.pxcentralApiServerImage.repo` | API server image repo | `portworx`
 `images.pxcentralApiServerImage.imageName` | API server image name | `pxcentral-onprem-api`
-`images.pxcentralApiServerImage.tag` | API server image tag | `2.3.1`
+`images.pxcentralApiServerImage.tag` | API server image tag | `2.7.0`
 `images.pxcentralFrontendImage.registry` | PX-Central frontend image registry | `docker.io`
 `images.pxcentralFrontendImage.repo` | PX-Central frontend image repo | `portworx`
 `images.pxcentralFrontendImage.imageName` | PX-Central frontend image name | `pxcentral-onprem-ui-frontend`
-`images.pxcentralFrontendImage.tag` | PX-Central frontend image tag | `2.3.1`
+`images.pxcentralFrontendImage.tag` | PX-Central frontend image tag | `2.7.0`
 `images.pxcentralBackendImage.registry` | PX-Central backend image registry | `docker.io`
 `images.pxcentralBackendImage.repo` | PX-Central backend image repo | `portworx`
 `images.pxcentralBackendImage.imageName` | PX-Central backend image name | `pxcentral-onprem-ui-backend`
-`images.pxcentralBackendImage.tag` | PX-Central backend image tag | `2.3.1`
+`images.pxcentralBackendImage.tag` | PX-Central backend image tag | `2.7.0`
 `images.pxcentralMiddlewareImage.registry` | PX-Central middleware image registry | `docker.io`
 `images.pxcentralMiddlewareImage.repo` | PX-Central middleware image repo | `portworx`
 `images.pxcentralMiddlewareImage.imageName` | PX-Central middleware image name | `pxcentral-onprem-ui-lhbackend`
-`images.pxcentralMiddlewareImage.tag`| PX-Central middleware image tag | `2.3.1`
+`images.pxcentralMiddlewareImage.tag`| PX-Central middleware image tag | `2.7.0`
 `images.postInstallSetupImage.registry` | PX-Backup post install setup image registry | `docker.io`
 `images.postInstallSetupImage.repo` | PX-Backup post install setup image repo | `portworx`
 `images.postInstallSetupImage.imageName` | PX-Backup post install setup image name | `pxcentral-onprem-post-setup`
-`images.postInstallSetupImage.tag` | PX-Backup post install setup image tag | `2.3.1`
+`images.postInstallSetupImage.tag` | PX-Backup post install setup image tag | `2.7.0`
 `images.keycloakBackendImage.registry` | PX-Backup keycloak backend image registry | `docker.io`
 `images.keycloakBackendImage.repo` | PX-Backup keycloak backend image repo | `portworx`
 `images.keycloakBackendImage.imageName` | PX-Backup keycloak backend image name | `postgresql`
-`images.keycloakBackendImage.tag` | PX-Backup keycloak backend image tag | `11.16.0-debian-11-r5`
+`images.keycloakBackendImage.tag` | PX-Backup keycloak backend image tag | `11.19.0-debian-11-r1`
 `images.keycloakFrontendImage.registry` | PX-Backup keycloak frontend image registry | `docker.io`
 `images.keycloakFrontendImage.repo` | PX-Backup keycloak frontend image repo | `portworx`
 `images.keycloakFrontendImage.imageName` | PX-Backup keycloak frontend image name | `keycloak`
-`images.keycloakFrontendImage.tag` | PX-Backup keycloak frontend image tag | `16.1.1`
+`images.keycloakFrontendImage.tag` | PX-Backup keycloak frontend image tag | `21.1.1`
 `images.keycloakLoginThemeImage.registry` | PX-Backup keycloak login theme image registry | `docker.io`
 `images.keycloakLoginThemeImage.repo` | PX-Backup keycloak login theme image repo | `portworx`
 `images.keycloakLoginThemeImage.imageName` | PX-Backup keycloak login theme image name | `keycloak-login-theme`
-`images.keycloakLoginThemeImage.tag` | PX-Backup keycloak login theme image tag | `2.2.0`
+`images.keycloakLoginThemeImage.tag` | PX-Backup keycloak login theme image tag | `2.7.0`
 `images.keycloakInitContainerImage.registry` | PX-Backup keycloak init container image registry | `docker.io`
 `images.keycloakInitContainerImage.repo` | PX-Backup keycloak init container image repo | `library`
 `images.keycloakInitContainerImage.imageName` | PX-Backup keycloak init container image name | `busybox`
-`images.keycloakInitContainerImage.tag` | PX-Backup keycloak init container image tag | `1.31`
+`images.keycloakInitContainerImage.tag` | PX-Backup keycloak init container image tag | `1.35.0`
 `images.mysqlImage.registry` | PX-Central cluster store mysql image registry | `docker.io`
 `images.mysqlImage.repo` | PX-Central cluster store mysql image repo | `library`
 `images.mysqlImage.imageName` | PX-Central cluster store mysql image name | `mysql`
-`images.mysqlImage.tag` | PX-Central cluster store mysql image tag | `5.7.38`
+`images.mysqlImage.tag` | PX-Central cluster store mysql image tag | `5.7.44`
 
 ### PX-Backup parameters
 

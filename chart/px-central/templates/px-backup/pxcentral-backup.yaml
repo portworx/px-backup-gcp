@@ -32,6 +32,9 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get"]
 {{- if eq $nfsEnabled true }}
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -88,6 +91,9 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["alertmanagerconfigs"]
+    verbs: ["get","create","delete","update","list","deletecollection"]
 {{- if eq $nfsEnabled true }}
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
@@ -203,6 +209,8 @@ spec:
           value: {{ .Values.pxbackup.orgName }}
         - name: PX_BACKUP_DEFAULT_DATASTORE
           value: mongodb
+        - name: USE_PX_BACKUP_EMAIL_ALERT_TEMPLATE
+          value: "{{ .Values.pxbackup.usePxBackupEmailAlertTemplate }}"
         - name: "REPORTING_SECRET"
           value: {{ .Values.reportingSecret | quote}}
         - name: "REPORTING_LOG_DIR"
