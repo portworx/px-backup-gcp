@@ -1,7 +1,10 @@
 {{/* Setting defaults if they are omitted. */}}
 {{- $pxMonitorEnabled := .Values.pxmonitor.enabled | default false }}
+{{- $deployDedicatedMonitoringSystem := .Values.pxbackup.deployDedicatedMonitoringSystem }}
 {{- $isOpenshiftCluster := .Capabilities.APIVersions.Has "apps.openshift.io/v1" -}}
+{{- $azureProxyEnabled := .Values.proxy.azureProxyEnabled | default false }}
 {{- if eq $pxMonitorEnabled true }}
+{{- if eq $deployDedicatedMonitoringSystem false }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -10,6 +13,7 @@ metadata:
   labels:
     app.kubernetes.io/component: pxcentral-prometheus
 {{- include "px-central.labels" . | nindent 4 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -69,6 +73,11 @@ metadata:
     app.kubernetes.io/component: pxcentral-prometheus
 {{- include "px-central.labels" . | nindent 4 }}
 spec:
+  {{- if eq $azureProxyEnabled true }}
+  podMetadata:
+    annotations:
+      kubernetes.azure.com/no-http-proxy-vars: "true"
+  {{- end }}
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -83,8 +92,90 @@ spec:
             values:
             - "false"
           {{- end }}
+  containers:
+  - args:
+    - --web.console.templates=/etc/prometheus/consoles
+    - --web.console.libraries=/etc/prometheus/console_libraries
+    - --storage.tsdb.retention.time=24h
+    - --config.file=/etc/prometheus/config_out/prometheus.env.yaml
+    - --storage.tsdb.path=/prometheus
+    - --web.enable-lifecycle
+    - --web.route-prefix=/
+    - --log.level=debug
+    - --web.config.file=/etc/prometheus/web_config/web-config-custom.yaml
+    env:
+    - name: AUTH_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: pxc-backup-metrics
+          key: metrics-token
+    {{- include "proxy.noProxyEnv" . | nindent 4 }}
+    image: {{ printf "%s/%s/%s:%s" .Values.images.prometheusImage.registry .Values.images.prometheusImage.repo .Values.images.prometheusImage.imageName .Values.images.prometheusImage.tag }}
+    livenessProbe:
+      exec:
+        command:
+        - sh
+        - -c
+        - wget {{ if .Values.proxy.httpProxy.noProxy }}--no-proxy{{ end }} http://localhost:9090/-/healthy --header="Authorization:Basic $AUTH_SECRET"
+          -qO-
+    name: prometheus
+    readinessProbe:
+      exec:
+        command:
+        - sh
+        - -c
+        - wget {{ if .Values.proxy.httpProxy.noProxy }}--no-proxy{{ end }} http://localhost:9090/-/ready --header="Authorization:Basic $AUTH_SECRET"
+          -qO-
+    startupProbe:
+      exec:
+        command:
+        - sh
+        - -c
+        - wget {{ if .Values.proxy.httpProxy.noProxy }}--no-proxy{{ end }} http://localhost:9090/-/ready --header="Authorization:Basic $AUTH_SECRET"
+          -qO-
+    ports:
+    - containerPort: 9090
+      name: web
+      protocol: TCP
+  - args:
+    - --listen-address=:8080
+    - --reload-url=http://$(USERNAME):$(PASSWORD)@localhost:9090/-/reload
+    - --config-file=/etc/prometheus/config/prometheus.yaml.gz
+    - --config-envsubst-file=/etc/prometheus/config_out/prometheus.env.yaml
+    - --watched-dir=/etc/prometheus/rules/prometheus-pxcentral-prometheus-rulefiles-0
+    - --log-level=debug
+    name: config-reloader
+    env:
+    - name: USERNAME
+      valueFrom:
+        secretKeyRef:
+          key: username
+          name: pxc-backup-metrics
+    - name: PASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: password
+          name: pxc-backup-metrics
+    {{- include "proxy.noProxyEnv" . | nindent 4 }}
+    ports:
+    - containerPort: 8080
+      name: reloader-web
+      protocol: TCP
   replicas: 1
+  evaluationInterval: 30s
+  scrapeInterval: 30s
   logLevel: debug
+  listenLocal: true
+  volumeMounts:
+    - mountPath: /etc/prometheus/web_config/web-config-custom.yaml
+      name: web-config-custom
+      readOnly: true
+      subPath: web-config-custom.yaml
+  volumes:
+    - name: web-config-custom
+      secret:
+        defaultMode: 420
+        secretName: pxc-backup-metrics
   serviceAccountName: pxcentral-prometheus
   image: {{ printf "%s/%s:%s" .Values.images.prometheusImage.registry .Values.images.prometheusImage.repo .Values.images.prometheusImage.tag }}
   {{- if .Values.images.pullSecrets }}
@@ -108,7 +199,12 @@ spec:
   ruleSelector:
     matchLabels:
       prometheus: portworx
+  {{- with .Values.tolerations }}
+  tolerations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }} 
 ---
+{{- if eq $deployDedicatedMonitoringSystem false }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -206,6 +302,10 @@ spec:
       app.kubernetes.io/component: pxcentral-prometheus
   template:
     metadata:
+      {{- if eq $azureProxyEnabled true }}
+      annotations:
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
       labels:
         k8s-app: pxcentral-prometheus-operator
         app.kubernetes.io/component: pxcentral-prometheus
@@ -233,6 +333,10 @@ spec:
           image: {{ printf "%s/%s:%s" .Values.images.prometheusOperatorImage.registry .Values.images.prometheusOperatorImage.repo .Values.images.prometheusOperatorImage.tag }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           name: pxcentral-prometheus-operator
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
           ports:
             - containerPort: 8080
               name: http
@@ -248,6 +352,11 @@ spec:
         - name: {{ $sec | quote }}
         {{- end }}
       {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
+{{- end }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule

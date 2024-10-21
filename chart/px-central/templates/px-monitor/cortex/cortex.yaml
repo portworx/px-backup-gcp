@@ -4,6 +4,7 @@
 {{- $externalPersistentStorageEnabled := .Values.persistentStorage.enabled | default false }}
 {{- $storkRequired := .Values.storkRequired | default false -}}
 {{- $sslEnabled := .Values.pxmonitor.sslEnabled | default false -}}
+{{- $azureProxyEnabled := .Values.proxy.azureProxyEnabled | default false }}
 {{- if eq $pxMonitorEnabled true }}
 apiVersion: v1
 kind: Secret
@@ -395,6 +396,9 @@ spec:
         target: configs
         release: pxcentral-cortex
       annotations:
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
         prometheus.io/port: http-metrics
         prometheus.io/scrape: "true"
     spec:
@@ -423,6 +427,10 @@ spec:
         - name: cortex
           image: {{ printf "%s/%s:%s" .Values.images.cortexImage.registry .Values.images.cortexImage.repo .Values.images.cortexImage.tag }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
           args:
             - "-target=configs"
             - "-config.file=/etc/cortex/cortex.yaml"
@@ -447,6 +455,10 @@ spec:
             initialDelaySeconds: 45
           securityContext:
             readOnlyRootFilesystem: true
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
       volumes:
         - name: config
           secret:
@@ -483,6 +495,9 @@ spec:
       annotations:
         prometheus.io/port: http-metrics
         prometheus.io/scrape: "true"
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
     spec:
       affinity:
         nodeAffinity:
@@ -498,8 +513,8 @@ spec:
                 values:
                 - "false"
               {{- end }}
-        {{- if eq .Values.podAntiAffinity true }}
         podAntiAffinity:
+          {{- if eq .Values.podAntiAffinity true }}
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
@@ -529,6 +544,10 @@ spec:
       {{- end }}
       containers:
         - name: cortex
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
           image: {{ printf "%s/%s:%s" .Values.images.cortexImage.registry .Values.images.cortexImage.repo .Values.images.cortexImage.tag }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
           args:
@@ -554,6 +573,10 @@ spec:
               path: /ready
               port: http-metrics
             initialDelaySeconds: 45
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
       volumes:
         - name: config
           secret:
@@ -593,6 +616,9 @@ spec:
       annotations:
         prometheus.io/port: http-metrics
         prometheus.io/scrape: ""
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
     spec:
       affinity:
         nodeAffinity:
@@ -608,8 +634,8 @@ spec:
                 values:
                 - "false"
               {{- end }}
-        {{- if eq .Values.podAntiAffinity true }}
         podAntiAffinity:
+          {{- if eq .Values.podAntiAffinity true }}
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
@@ -658,6 +684,10 @@ spec:
               path: /healthz
               port: http
             initialDelaySeconds: 10
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
         - name: dnsmasq
           image: {{ printf "%s/%s:%s" .Values.images.dnsmasqImage.registry .Values.images.dnsmasqImage.repo .Values.images.dnsmasqImage.tag }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
@@ -666,6 +696,14 @@ spec:
             - "127.0.0.1:53"
             - --default-resolver
             - --append-search-domains
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
       volumes:
         - name: config
           configMap:
@@ -702,6 +740,9 @@ spec:
       annotations:
         prometheus.io/port: http-metrics
         prometheus.io/scrape: "true"
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
     spec:
       affinity:
         nodeAffinity:
@@ -717,8 +758,8 @@ spec:
                 values:
                 - "false"
               {{- end }}
-        {{- if eq .Values.podAntiAffinity true }}
         podAntiAffinity:
+          {{- if eq .Values.podAntiAffinity true }}
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
@@ -776,6 +817,14 @@ spec:
               path: /ready
               port: http-metrics
             initialDelaySeconds: 45
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
       volumes:
         - name: config
           secret:
@@ -814,6 +863,9 @@ spec:
       annotations:
         prometheus.io/port: http-metrics
         prometheus.io/scrape: "true"
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
     spec:
       affinity:
         nodeAffinity:
@@ -829,8 +881,8 @@ spec:
                 values:
                 - "false"
               {{- end }}
-        {{- if eq .Values.podAntiAffinity true }}
         podAntiAffinity:
+          {{- if eq .Values.podAntiAffinity true }}
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
@@ -885,6 +937,14 @@ spec:
               path: /ready
               port: http-metrics
             initialDelaySeconds: 45
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
       volumes:
         - name: config
           secret:
@@ -921,6 +981,9 @@ spec:
       annotations:
         prometheus.io/port: http-metrics
         prometheus.io/scrape: "true"
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
     spec:
       affinity:
         nodeAffinity:
@@ -974,6 +1037,14 @@ spec:
               path: /ready
               port: http-metrics
             initialDelaySeconds: 45
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
       volumes:
         - name: config
           secret:
@@ -1012,6 +1083,9 @@ spec:
       annotations:
         prometheus.io/port: http-metrics
         prometheus.io/scrape: "true"
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
     spec:
       affinity:
         nodeAffinity:
@@ -1061,6 +1135,14 @@ spec:
               path: /ready
               port: http-metrics
             initialDelaySeconds: 45
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
       volumes:
         - name: config
           secret:
@@ -1110,6 +1192,9 @@ spec:
       annotations:
         prometheus.io/port: http-metrics
         prometheus.io/scrape: "true"
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
     spec:
       affinity:
         nodeAffinity:
@@ -1165,6 +1250,7 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: status.podIP
+            {{- include "proxy.noProxyEnv" . | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: /etc/cortex
@@ -1184,6 +1270,10 @@ spec:
               path: /ready
               port: http-metrics
             initialDelaySeconds: 45
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -1225,6 +1315,9 @@ spec:
         target: ingester
         release: pxcentral-cortex
       annotations:
+      {{- if eq $azureProxyEnabled true }}
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
         prometheus.io/port: http-metrics
         prometheus.io/scrape: "true"
     spec:
@@ -1242,8 +1335,8 @@ spec:
                 values:
                 - "false"
               {{- end }}
-        {{- if eq .Values.podAntiAffinity true }}
         podAntiAffinity:
+          {{- if eq .Values.podAntiAffinity true }}
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
@@ -1315,4 +1408,12 @@ spec:
             periodSeconds: 30
             successThreshold: 1
             timeoutSeconds: 1
+          {{- if .Values.proxy.httpProxy }}
+          env:
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }} 
 {{- end -}}

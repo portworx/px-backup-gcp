@@ -4,6 +4,7 @@
 {{- $reportingSecret := .Values.reportingSecret | default "none"}}
 {{- $reportingLogDir := "/tmp/reports"}}
 {{- $nfsEnabled := .Values.pxbackup.nfs.enabled | default false }}
+{{- $azureProxyEnabled := .Values.proxy.azureProxyEnabled | default false }}
 {{- if eq $pxBackupEnabled true }}
 apiVersion: v1
 kind: ServiceAccount
@@ -32,6 +33,9 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get"]
 {{- if eq $nfsEnabled true }}
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -88,6 +92,9 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["alertmanagerconfigs"]
+    verbs: ["get","create","delete","update","list","deletecollection"]
 {{- if eq $nfsEnabled true }}
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
@@ -178,6 +185,10 @@ spec:
     metadata:
       labels:
         app: px-backup
+      {{- if eq $azureProxyEnabled true }}
+      annotations:
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
     spec:
       affinity:
         nodeAffinity:
@@ -201,8 +212,14 @@ spec:
               fieldPath: metadata.namespace
         - name: PX_BACKUP_DEFAULT_ORG
           value: {{ .Values.pxbackup.orgName }}
+        - name: ENABLE_MONITOR_BL_HEALTH
+          value: "{{ .Values.pxbackup.enableMonitorBLHealth }}"
+        - name: MONITOR_BL_HEALTH_FREQUENCY
+          value: {{ .Values.pxbackup.monitorBLHealthFrequency }}
         - name: PX_BACKUP_DEFAULT_DATASTORE
           value: mongodb
+        - name: USE_PX_BACKUP_EMAIL_ALERT_TEMPLATE
+          value: "{{ .Values.pxbackup.usePxBackupEmailAlertTemplate }}"
         - name: "REPORTING_SECRET"
           value: {{ .Values.reportingSecret | quote}}
         - name: "REPORTING_LOG_DIR"
@@ -212,9 +229,10 @@ spec:
         - name: "PRODUCT_PLAN_ID"
           value: {{ .Values.product_plan}}
         - name: SOFT_LICENSING_PERIOD
-          value: "30"
+          value: "36160"
         - name: AIRGAP_REPORTING_PERIOD
           value: "90"
+        {{- include "proxy.noProxyEnv" . | nindent 8 }}
         {{- if .Values.caCertsSecretName }}
         - name: SSL_CERT_DIR
           value: /tmp/certs
@@ -239,6 +257,7 @@ spec:
           initialDelaySeconds: {{ .Values.pxbackup.livenessProbeInitialDelay }}
           timeoutSeconds: 1
           periodSeconds: 60
+        {{- if .Values.caCertsSecretName }}  
         volumeMounts:
           - name: reporting-log-dir
             mountPath: {{ $reportingLogDir }}

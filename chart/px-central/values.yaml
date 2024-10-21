@@ -11,11 +11,15 @@ persistentStorage:
     storage: 2Gi
   ingester:
     storage: 2Gi
+  prometheus:
+    storage: 64Gi
+    retentionSize: 51200MB
   mysqlVolumeSize: "100Gi"
   mongodbVolumeSize: "64Gi"
   mongoCacheSize: 4
   keycloakThemeVolumeSize: "5Gi"
   keycloakBackendVolumeSize: "10Gi"
+  preUpgradeHookVolumeSize: "65Gi"
 
 storkRequired: false
 nodeAffinityLabel: ""
@@ -41,6 +45,11 @@ oidc:
     clientSecret:
     endpoint:
 
+proxy:
+  azureProxyEnabled: false
+  httpProxy:
+    noProxy: ""
+
 postInstallJob:
   sslEnabled: true
 
@@ -50,8 +59,22 @@ pxbackup:
   callHome: true
   mongoMigration: complete
   livenessProbeInitialDelay: 1800
+  prometheus:
+    replicas: 2
+    retention: 90d
+  alertmanager:
+    replicas: 2
+    retention: 2208h
   nfs:
     enabled: true
+  deployDedicatedMonitoringSystem: true
+  prometheusEndpoint: ""
+  alertmanagerEndpoint: ""
+  prometheusSecretName: ""
+  alertmanagerSecretName: ""
+  usePxBackupEmailAlertTemplate: true
+  monitorBLHealthFrequency: 210m
+  enableMonitorBLHealth: false
 
 pxlicenseserver:
   enabled: false
@@ -138,27 +161,27 @@ images:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-api
-    tag: 2.6.0
+    tag: 2.7.3
   pxcentralFrontendImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-frontend
-    tag: 2.6.0
+    tag: 2.7.3
   pxcentralBackendImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-backend
-    tag: 2.6.0
+    tag: 2.7.3
   pxcentralMiddlewareImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-ui-lhbackend
-    tag: 2.6.0
+    tag: 2.7.3
   postInstallSetupImage:
     registry: docker.io
     repo: portworx
     imageName: pxcentral-onprem-post-setup
-    tag: 2.6.0
+    tag: 2.7.3
   keycloakBackendImage:
     registry: docker.io
     repo: portworx
@@ -168,35 +191,44 @@ images:
     registry: docker.io
     repo: portworx
     imageName: keycloak
-    tag: 21.1.1
+    tag: 21.1.2
   keycloakLoginThemeImage:
     registry: docker.io
     repo: portworx
     imageName: keycloak-login-theme
-    tag: 2.2.0
+    tag: 2.7.0
   keycloakInitContainerImage:
     registry: docker.io
     repo: portworx
     imageName: busybox
-    tag: 1.31
+    tag: 1.35.0
   mysqlImage:
     registry: docker.io
     repo: portworx
     imageName: mysql
-    tag: 5.7.41
+    tag: 8.0.37
+  preUpgradeHookImage:
+    registry: docker.io
+    repo: portworx
+    imageName: pxcentral-onprem-pre-upgrade
+    tag: 2.7.3
+  mysqlInitImage:
+    registry: docker.io
+    repo: portworx
+    imageName: busybox
+    tag: 1.35.0
 
   ## Images required for enabling px-backup
-
   pxBackupImage:
     registry: docker.io
     repo: portworx
     imageName: px-backup
-    tag: 2.6.0
+    tag: 2.7.3
   mongodbImage:
     registry: docker.io
     repo: portworx
     imageName: mongodb
-    tag: 5.0.20-debian-11-r13
+    tag: 7.0.14-debian-12-r0
 
   ## Images required for enabling px-license-server
   licenseServerImage:
@@ -241,6 +273,26 @@ images:
     repo: portworx
     imageName: prometheus
     tag: v2.35.0
+  pxBackupPrometheusImage:
+    registry: docker.io
+    repo: portworx
+    imageName: prometheus
+    tag: v2.53.0
+  pxBackupAlertmanagerImage:
+    registry: docker.io
+    repo: portworx
+    imageName: alertmanager
+    tag: v0.26.0
+  pxBackupPrometheusOperatorImage:
+    registry: docker.io
+    repo: portworx
+    imageName: prometheus-operator
+    tag: v0.75.0
+  pxBackupPrometheusConfigReloaderImage:
+    registry: docker.io
+    repo: portworx
+    imageName: prometheus-config-reloader
+    tag: v0.75.0
   prometheusConfigReloadrImage:
     registry: docker.io
     repo: portworx
@@ -266,3 +318,13 @@ images:
     repo: portworx
     imageName: memcached
     tag: 1.6.17-alpine
+
+  ## Images required for intermediate Mongo upgrades
+  mongodbImageMap:
+    registry: docker.io
+    repo: portworx
+    imageName: mongodb
+    tags: 
+      mongodb5: 5.0.24-debian-11-r20
+      mongodb6: 6.0.13-debian-11-r21
+      mongodb7: 7.0.14-debian-12-r0
