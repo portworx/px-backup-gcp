@@ -9,7 +9,7 @@ x-google-marketplace:
 
   # The release version is required in the schema and MUST match the
   # release tag on the the deployer.
-  publishedVersion: '2.6.0'
+  publishedVersion: '2.8.0'
   publishedVersionMetadata:
     releaseNote: >-
       Release notes can be found here: https://backup.docs.portworx.com/release-notes/
@@ -110,6 +110,56 @@ x-google-marketplace:
         images.mysqlImage.repo:
           type: REPO_WITHOUT_REGISTRY
         images.mysqlImage.tag: 
+          type: TAG
+    pxcentral-onprem-pre-upgrade:
+      properties:
+        images.preUpgradeHookImage.registry:
+          type: REGISTRY
+        images.preUpgradeHookImage.repo:
+          type: REPO_WITHOUT_REGISTRY
+        images.preUpgradeHookImage.tag: 
+          type: TAG
+    busybox:
+      properties:
+        images.mysqlInitImage.registry:
+          type: REGISTRY
+        images.mysqlInitImage.repo:
+          type: REPO_WITHOUT_REGISTRY
+        images.mysqlInitImage.tag: 
+          type: TAG
+    
+    ## Images requires for enabling px-backup monitoring
+    prometheus:
+      properties:
+        images.pxBackupPrometheusImage.registry:
+          type: REGISTRY
+        images.pxBackupPrometheusImage.repo:
+          type: REPO_WITHOUT_REGISTRY
+        images.pxBackupPrometheusImage.tag: 
+          type: TAG
+    alertmanager:
+      properties:
+        images.pxBackupAlertmanagerImage.registry:
+          type: REGISTRY
+        images.pxBackupAlertmanagerImage.repo:
+          type: REPO_WITHOUT_REGISTRY
+        images.pxBackupAlertmanagerImage.tag: 
+          type: TAG
+    prometheus-operator:
+      properties:
+        images.pxBackupPrometheusOperatorImage.registry:
+          type: REGISTRY
+        images.pxBackupPrometheusOperatorImage.repo:
+          type: REPO_WITHOUT_REGISTRY
+        images.pxBackupPrometheusOperatorImage.tag: 
+          type: TAG
+    prometheus-config-reloader:
+      properties:
+        images.pxBackupPrometheusConfigReloaderImage.registry:
+          type: REGISTRY
+        images.pxBackupPrometheusConfigReloaderImage.repo:
+          type: REPO_WITHOUT_REGISTRY
+        images.pxBackupPrometheusConfigReloaderImage.tag: 
           type: TAG
 
     ## Images required for enabling px-backup
