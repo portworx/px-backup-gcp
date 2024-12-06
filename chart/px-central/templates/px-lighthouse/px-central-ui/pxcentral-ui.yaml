@@ -3,6 +3,7 @@
 {{- $externalPersistentStorageEnabled := .Values.persistentStorage.enabled | default false }}
 {{- $isOpenshiftCluster := .Capabilities.APIVersions.Has "apps.openshift.io/v1" -}}
 {{- $nfsEnabled := .Values.pxbackup.nfs.enabled | default false }}
+{{- $azureProxyEnabled := .Values.proxy.azureProxyEnabled | default false }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -53,6 +54,7 @@ data:
       location / {
         root   /usr/share/nginx/html;
         add_header Cache-Control "no-cache";
+        add_header Referrer-Policy 'no-referrer';
         index  index.html index.htm;
       }
 
@@ -72,7 +74,7 @@ data:
       location /lhBackend/ {
         proxy_pass http://lhBackend/;
       }
-      location /auth/ {
+      location /auth {
         proxy_pass http://keycloak;
         proxy_cache_bypass  $http_upgrade;
         proxy_set_header Upgrade           $http_upgrade;
@@ -144,6 +146,10 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      {{- if and (eq $azureProxyEnabled true) (not (has "pxcentral-backend" .Values.proxy.excludeAzureProxyList)) }}
+      annotations:
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
       labels:
         run: pxcentral-backend
         app.kubernetes.io/component: pxcentral-backend
@@ -198,6 +204,9 @@ spec:
                 secretKeyRef:
                   key: credential
                   name: px-central-admin
+            {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxcentral-backend" .Values.proxy.includeNoProxyList) }}
+            {{- include "proxy.noProxyEnv" . | nindent 12 }}
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: pxcentral-ui-configmap
@@ -236,6 +245,9 @@ spec:
                 secretKeyRef:
                   name: pxcentral-mysql-secret
                   key: DB_PASSWORD
+            {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxcentral-backend" .Values.proxy.includeNoProxyList) }}
+            {{- include "proxy.noProxyEnv" . | nindent 12 }}
+            {{- end }}
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -298,6 +310,10 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      {{- if and (eq $azureProxyEnabled true) (not (has "pxcentral-frontend" .Values.proxy.excludeAzureProxyList)) }}
+      annotations:
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
       labels:
         run: pxcentral-frontend
         app.kubernetes.io/component: pxcentral-frontend
@@ -348,6 +364,9 @@ spec:
                 secretKeyRef:
                   name: pxcentral-mysql-secret
                   key: DB_PASSWORD
+            {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxcentral-frontend" .Values.proxy.includeNoProxyList) }}
+            {{- include "proxy.noProxyEnv" . | nindent 12 }}
+            {{- end }}
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -442,6 +461,10 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      {{- if and (eq $azureProxyEnabled true) (not (has "pxcentral-mysql" .Values.proxy.excludeAzureProxyList)) }}
+      annotations:
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
       labels:
         run: pxcentral-mysql
         app.kubernetes.io/component: pxcentral-mysql
@@ -474,12 +497,18 @@ spec:
       securityContext:
 {{ toYaml .Values.securityContext | indent 8 }}
       {{- end }}
+      initContainers:
+      - name: init-mysql
+        image: {{ printf "%s/%s:%s" .Values.images.mysqlInitImage.registry .Values.images.mysqlInitImage.repo .Values.images.mysqlInitImage.tag }}
+        command: ['sh', '-c', 'rmdir /var/lib/mysql/lost+found || true']
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: pxcentral-mysql
       containers:
         - name: mysql
           image: {{ printf "%s/%s:%s" .Values.images.mysqlImage.registry .Values.images.mysqlImage.repo .Values.images.mysqlImage.tag }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
           args:
-            - "--ignore-db-dir=lost+found"
           ports:
             - containerPort: 3306
           env:
@@ -502,6 +531,9 @@ spec:
               value: pxcentral-mysql
             - name: SERVICE_TAGS
               value: dev
+            {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxcentral-mysql" .Values.proxy.includeNoProxyList) }}
+            {{- include "proxy.noProxyEnv" . | nindent 12 }}
+            {{- end }}
           livenessProbe:
             exec:
               command:

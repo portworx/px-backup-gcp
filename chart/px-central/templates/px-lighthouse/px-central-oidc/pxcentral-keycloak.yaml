@@ -3,6 +3,7 @@
 {{- $centralOIDC := .Values.oidc.centralOIDC.enabled | default false -}}
 {{- $operatorToChartUpgrade := .Values.operatorToChartUpgrade | default false -}}
 {{- $isOpenshiftCluster := .Capabilities.APIVersions.Has "apps.openshift.io/v1" -}}
+{{- $azureProxyEnabled := .Values.proxy.azureProxyEnabled | default false }}
 {{- if eq $centralOIDC true }}
 apiVersion: v1
 kind: ServiceAccount
@@ -308,6 +309,10 @@ spec:
   template:
     metadata:
       name: pxcentral-keycloak-postgresql
+      {{- if and (eq $azureProxyEnabled true) (not (has "pxcentral-keycloak-postgresql" .Values.proxy.excludeAzureProxyList)) }}
+      annotations:
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
       labels:
         app: postgresql
         role: master
@@ -376,6 +381,9 @@ spec:
               value: "keycloak"
             - name: POSTGRESQL_ENABLE_LDAP
               value: "no"
+            {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxcentral-keycloak-postgresql" .Values.proxy.includeNoProxyList) }}
+            {{- include "proxy.noProxyEnv" . | nindent 12 }}
+            {{- end }}
           ports:
             - name: tcp-postgresql
               containerPort: 5432
@@ -459,6 +467,10 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      {{- if and (eq $azureProxyEnabled true) (not (has "pxcentral-keycloak" .Values.proxy.excludeAzureProxyList)) }}
+      annotations:
+        kubernetes.azure.com/no-http-proxy-vars: "true"
+      {{- end }}
       labels:
         app.kubernetes.io/component: keycloak
         app.kubernetes.io/name: {{.Release.Name }}
@@ -510,7 +522,19 @@ spec:
               echo 'PostgreSQL OK ✓'
           resources:
             {}
+          {{- if .Values.proxy.httpProxy.noProxy }}
+          env:
+          {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxcentral-keycloak" .Values.proxy.includeNoProxyList) }}
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
+          {{- end }}
         - name: px-keycloak-login-theme
+          {{- if .Values.proxy.httpProxy.noProxy }}
+          env:
+          {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxcentral-keycloak" .Values.proxy.includeNoProxyList) }}
+          {{ include "proxy.noProxyEnv" . | nindent 10 }}
+          {{- end }}
+          {{- end }}
           image: {{ printf "%s/%s:%s" .Values.images.keycloakLoginThemeImage.registry .Values.images.keycloakLoginThemeImage.repo .Values.images.keycloakLoginThemeImage.tag }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
           command:
@@ -565,6 +589,9 @@ spec:
             value: /tmp/certs/*
           - name: HELM_CHECKSUM
             value: {{ randAlphaNum 8 | quote }}
+          {{- end }}
+          {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxcentral-keycloak" .Values.proxy.includeNoProxyList) }}
+          {{- include "proxy.noProxyEnv" . | nindent 10 }}
           {{- end }}
           volumeMounts:
             - name: sh
