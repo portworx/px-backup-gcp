@@ -1,8 +1,6 @@
 {{/* Setting defaults if they are omitted. */}}
 {{- $pxBackupEnabled := .Values.pxbackup.enabled | default false }}
-{{- $isOpenshiftCluster := .Capabilities.APIVersions.Has "apps.openshift.io/v1" -}}
-{{- $reportingSecret := .Values.reportingSecret | default "none"}}
-{{- $reportingLogDir := "/tmp/reports"}}
+{{- $isOpenshiftCluster := or .Values.isOpenshift (.Capabilities.APIVersions.Has "apps.openshift.io/v1") -}}
 {{- $nfsEnabled := .Values.pxbackup.nfs.enabled | default false }}
 {{- $azureProxyEnabled := .Values.proxy.azureProxyEnabled | default false }}
 {{- if eq $pxBackupEnabled true }}
@@ -225,14 +223,6 @@ spec:
           value: {{ .Values.pxbackup.monitorBLHealthFrequency }}
         - name: PX_BACKUP_DEFAULT_DATASTORE
           value: mongodb
-        - name: "REPORTING_SECRET"
-          value: {{ .Values.reportingSecret | quote}}
-        - name: "REPORTING_LOG_DIR"
-          value: {{ $reportingLogDir }}
-        - name: "REPORTING_SECRET_NAMESPACE"
-          value: {{ template "px-central.getDeploymentNamespace" . }}
-        - name: "PRODUCT_PLAN_ID"
-          value: {{ .Values.product_plan}}
         - name: USE_PX_BACKUP_EMAIL_ALERT_TEMPLATE
           value: "{{ .Values.pxbackup.usePxBackupEmailAlertTemplate }}"
         - name: SOFT_LICENSING_PERIOD
@@ -266,10 +256,8 @@ spec:
           initialDelaySeconds: {{ .Values.pxbackup.livenessProbeInitialDelay }}
           timeoutSeconds: 1
           periodSeconds: 60
+        {{- if .Values.caCertsSecretName }}  
         volumeMounts:
-          - name: reporting-log-dir
-            mountPath: {{ $reportingLogDir }}
-        {{- if .Values.caCertsSecretName }}
           - mountPath: /tmp/certs
             readOnly: true
             name: ssl-cert-dir
@@ -279,11 +267,8 @@ spec:
         - start
         - --datastoreEndpoints=mongodb://pxbackup:Password1@pxc-backup-mongodb-0.pxc-backup-mongodb-headless:27017,pxc-backup-mongodb-1.pxc-backup-mongodb-headless:27017,pxc-backup-mongodb-2.pxc-backup-mongodb-headless:27017/?authSource=px-backup&replicaSet=rs0
         - --mongo-migration={{.Values.pxbackup.mongoMigration}}
-      volumes:
-        - name: reporting-log-dir
-          persistentVolumeClaim:
-            claimName: pxcentral-reporting-log-dir
       {{- if .Values.caCertsSecretName }}
+      volumes:
         - name: ssl-cert-dir
           secret:
             defaultMode: 420

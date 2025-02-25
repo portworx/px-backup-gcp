@@ -1,142 +1,152 @@
-{{- $isOpenshiftCluster := .Capabilities.APIVersions.Has "apps.openshift.io/v1" -}}
-{{- $deployDedicatedMonitoringSystem := .Values.pxbackup.deployDedicatedMonitoringSystem }}
-{{- $pxMonitorEnabled := .Values.pxmonitor.enabled | default false }}
-{{- $metricsSecret := (lookup "v1" "Secret" .Release.Namespace "pxc-backup-metrics") | default dict }}
-{{- $metricsSecretData := (get $metricsSecret "data") | default dict }}
-{{- $metricsPass := (get $metricsSecretData "password" | b64dec) | default (randAlphaNum 12 ) }}
-{{- $metricsToken := (get $metricsSecretData "metrics-token" | b64dec) | default ( printf "admin:%s" $metricsPass | b64enc | quote ) }}
-{{- $metricsBasicAuth := htpasswd "admin" $metricsPass }}
+{{/* Setting defaults if they are omitted. */}}
+{{- $pxBackupEnabled := .Values.pxbackup.enabled | default false }}
+{{- $externalPersistentStorageEnabled := .Values.persistentStorage.enabled | default false }}
+{{- $isOpenshiftCluster := or .Values.isOpenshift (.Capabilities.APIVersions.Has "apps.openshift.io/v1") -}}
+{{- $mongoCacheSize := int .Values.persistentStorage.mongoCacheSize}}
 {{- $azureProxyEnabled := .Values.proxy.azureProxyEnabled | default false }}
-{{- if eq $deployDedicatedMonitoringSystem true }}
-{{- $storageSize := "5Gi" }}
-{{- $retentionSize := "4096MB" }}
-{{- $prometheus := lookup "monitoring.coreos.com/v1" "Prometheus" .Release.Namespace "px-backup-dashboard-prometheus" }}
-{{- if $prometheus }}
-{{- $storageSize = $prometheus.spec.storage.volumeClaimTemplate.spec.resources.requests.storage }}
-{{- range $prometheus.spec.containers -}}
-  {{- range $arg := .args -}}
-    {{- if hasPrefix "--storage.tsdb.retention.size=" $arg -}}
-      {{- $retentionSize = trimPrefix "--storage.tsdb.retention.size=" $arg -}}
-        {{- if eq $retentionSize "4600MB" -}}
-          {{- $retentionSize = "4096MB" -}}
-        {{- end -}}
-    {{- end -}}
-  {{- end -}}
-{{- end -}}
-{{- else }}
-{{- end }}
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+{{- if eq $pxBackupEnabled true }}
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: pxc-prometheus-operator
+  name: pxc-backup-mongodb-scripts
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/component: px-backup
-{{- include "px-central.labels" . | nindent 4 }}
-subjects:
-  - kind: ServiceAccount
-    name: pxc-prometheus-operator
-    namespace: {{ .Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: pxc-prometheus-operator
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: pxc-prometheus-operator
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/component: px-backup
-{{- include "px-central.labels" . | nindent 4 }}
-rules:
-  - apiGroups:
-      - extensions
-    resources:
-      - thirdpartyresources
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups:
-      - apiextensions.k8s.io
-    resources:
-        - customresourcedefinitions
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups:
-      - monitoring.coreos.com
-    resources:
-        - alertmanagers
-        - alertmanagers/status
-        - alertmanagers/finalizers
-        - prometheuses
-        - prometheuses/finalizers
-        - prometheuses/status
-        - servicemonitors
-        - prometheusrules
-        - podmonitors
-        - thanosrulers
-        - alertmanagerconfigs
-        - probes
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups:
-      - apps
-    resources:
-      - statefulsets
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources:
-      - configmaps
-      - secrets
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources:
-      - pods
-    verbs: ["list", "delete"]
-  - apiGroups: [""]
-    resources:
-      - services
-      - endpoints
-    verbs: ["get", "create", "update"]
-  - apiGroups: [""]
-    resources:
-      - nodes
-    verbs: ["list", "watch"]
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["list", "watch", "get"]
+    app.kubernetes.io/component: pxc-backup-mongodb
+  {{- include "px-central.labels" . | nindent 4 }}
+data:
+  setup.sh: |-
+    #!/bin/bash
 
+    . /opt/bitnami/scripts/mongodb-env.sh
+    . /opt/bitnami/scripts/libfs.sh
+    . /opt/bitnami/scripts/liblog.sh
+    . /opt/bitnami/scripts/libvalidations.sh
+
+    echo "Advertised Hostname: $MONGODB_ADVERTISED_HOSTNAME"
+    echo "Advertised Service: $K8S_SERVICE_NAME"
+
+    # Check for existing replica set in case there is no data in the PVC
+    # This is for cases where the PVC is lost or for MongoDB caches without
+    # persistence
+    current_primary=""
+    if is_dir_empty "${MONGODB_DATA_DIR}/db"; then
+      echo "Data dir empty, checking if the replica set already exists"
+      {{- $replicaCount := 3 }}
+      {{- $portNumber := 27017 }}
+      {{- $fullname := "pxc-backup-mongodb" }}
+      {{- $mongoList := list }}
+      {{- range $e, $i := until $replicaCount }}
+      {{- $mongoList = append $mongoList (printf "%s-%d.%s-headless:%d" $fullname $i $fullname $portNumber) }}
+      {{- end }}
+      echo "mongoList: {{ join "," $mongoList }}"
+      current_primary=$(mongosh admin --host "{{ join "," $mongoList }}" --authenticationDatabase admin -u root -p $MONGODB_ROOT_PASSWORD --eval 'db.runCommand("ismaster")' | awk -F\' '/primary/ {print $2}')
+
+      if ! is_empty_value "$current_primary"; then
+        echo "Detected existing primary: ${current_primary}"
+      fi
+    fi
+
+    if ! is_empty_value "$current_primary" && [[ "$MONGODB_ADVERTISED_HOSTNAME:$MONGODB_ADVERTISED_PORT_NUMBER" == "$current_primary" ]]; then
+        echo "Advertised name matches current primary, configuring node as a primary"
+        export MONGODB_REPLICA_SET_MODE="primary"
+    elif ! is_empty_value "$current_primary" && [[ "$MONGODB_ADVERTISED_HOSTNAME:$MONGODB_ADVERTISED_PORT_NUMBER" != "$current_primary" ]]; then
+        info "Current primary is different from this node. Configuring the node as replica of ${current_primary}"
+        export MONGODB_REPLICA_SET_MODE="secondary"
+        export MONGODB_INITIAL_PRIMARY_HOST="${current_primary%:*}"
+        export MONGODB_INITIAL_PRIMARY_PORT_NUMBER="${current_primary#*:}"
+        export MONGODB_SET_SECONDARY_OK="yes"
+    elif [[ "$MY_POD_NAME" = "pxc-backup-mongodb-0" ]]; then
+        echo "Pod name matches initial primary pod name, configuring node as a primary"
+        export MONGODB_REPLICA_SET_MODE="primary"
+    else
+        echo "Pod name doesn't match initial primary pod name, configuring node as a secondary"
+        export MONGODB_REPLICA_SET_MODE="secondary"
+        export MONGODB_INITIAL_PRIMARY_PORT_NUMBER="$MONGODB_PORT_NUMBER"
+    fi
+
+    if [[ "$MONGODB_REPLICA_SET_MODE" == "secondary" ]]; then
+        export MONGODB_INITIAL_PRIMARY_ROOT_USER="$MONGODB_ROOT_USER"
+        export MONGODB_INITIAL_PRIMARY_ROOT_PASSWORD="$MONGODB_ROOT_PASSWORD"
+        export MONGODB_ROOT_PASSWORD="" MONGODB_USERNAME="" MONGODB_DATABASE="" MONGODB_PASSWORD=""
+    fi
+
+    exec /opt/bitnami/scripts/mongodb/entrypoint.sh /opt/bitnami/scripts/mongodb/run.sh
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pxc-backup-mongodb-headless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: pxc-backup-mongodb
+{{- include "px-central.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: mongodb
+  selector:
+    app.kubernetes.io/component: pxc-backup-mongodb
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/component: pxc-backup-mongodb
+{{- include "px-central.labels" . | nindent 4 }}
+  name: pxc-backup-mongodb
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+stringData:
+  mongodb-root-password: "pxcentral"
+  mongodb-password: "Password1"
+  mongodb-replica-set-key: "pxbackup"
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: pxc-prometheus-operator
+  name: pxc-backup-mongodb
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/component: px-backup
+    app.kubernetes.io/component: pxc-backup-mongodb
 {{- include "px-central.labels" . | nindent 4 }}
+secrets:
+  - name: pxc-backup-mongodb
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  labels:
-    k8s-app: prometheus-operator
-    app.kubernetes.io/component: px-backup
-{{- include "px-central.labels" . | nindent 4 }}
-  name: prometheus-operator
+  name: pxc-backup-mongodb
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: pxc-backup-mongodb
+{{- include "px-central.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      k8s-app: prometheus-operator
-  replicas: 1
+      app.kubernetes.io/name: {{.Release.Name }}
+      app.kubernetes.io/instance: {{.Release.Name }}
+      app.kubernetes.io/managed-by: {{.Release.Service }}
+      app.kubernetes.io/component: pxc-backup-mongodb
+  serviceName: pxc-backup-mongodb-headless
+  podManagementPolicy: Parallel
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
-      labels:
-        k8s-app: prometheus-operator
-      {{- if and (eq $azureProxyEnabled true) (not (has "prometheus-operator" .Values.proxy.excludeAzureProxyList)) }}
+      {{- if and (eq $azureProxyEnabled true) (not (has "pxc-backup-mongodb" .Values.proxy.excludeAzureProxyList)) }}
       annotations:
         kubernetes.azure.com/no-http-proxy-vars: "true"
       {{- end }}
+      labels:
+        app.kubernetes.io/name: {{.Release.Name }}
+        app.kubernetes.io/instance: {{.Release.Name }}
+        app.kubernetes.io/managed-by: {{.Release.Service }}
+        app.kubernetes.io/component: pxc-backup-mongodb
     spec:
       affinity:
         nodeAffinity:
@@ -152,432 +162,172 @@ spec:
                 values:
                 - "false"
               {{- end }}
-      containers:
-      - args:
-          - -namespaces={{ .Release.Namespace }}
-          - --kubelet-service={{ .Release.Namespace }}/kubelet
-          - --prometheus-config-reloader={{ printf "%s/%s/%s:%s" .Values.images.pxBackupPrometheusConfigReloaderImage.registry .Values.images.pxBackupPrometheusConfigReloaderImage.repo .Values.images.pxBackupPrometheusConfigReloaderImage.imageName .Values.images.pxBackupPrometheusConfigReloaderImage.tag }}
-        image: {{ printf "%s/%s:%s" .Values.images.pxBackupPrometheusOperatorImage.registry .Values.images.pxBackupPrometheusOperatorImage.repo .Values.images.pxBackupPrometheusOperatorImage.tag }}
-        name: prometheus-operator
-        ports:
-          - containerPort: 8080
-            name: http
-        {{- if .Values.proxy.httpProxy.noProxy }}
-        env:
-        {{- if or (empty .Values.proxy.includeNoProxyList) (has "prometheus-operator" .Values.proxy.includeNoProxyList) }}
-        {{ include "proxy.noProxyEnv" . | nindent 8 }}
+        podAntiAffinity:
+          {{- if eq .Values.podAntiAffinity true }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                  - pxc-backup-mongodb
+              topologyKey: kubernetes.io/hostname
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                    - pxc-backup-mongodb
+                topologyKey: kubernetes.io/hostname
+          {{- end }}
+      {{- if eq .Values.storkRequired true }}
+      schedulerName: stork
+      {{- end }}
+      {{- if .Values.images.pullSecrets }}
+      imagePullSecrets:
+        {{- range $sec := .Values.images.pullSecrets }}
+        - name: {{ $sec | quote }}
         {{- end }}
-        {{- end }}
-        {{- if $isOpenshiftCluster }}
-        {{- else }}
+      {{- end }}
+      serviceAccountName: pxc-backup-mongodb
+      {{- if $isOpenshiftCluster}}
+      {{- else }}
       securityContext:
 {{ toYaml .Values.securityContext | indent 8 }}
       {{- end }}
-      serviceAccountName: pxc-prometheus-operator
-      {{- if .Values.images.pullSecrets }}
-      imagePullSecrets:
-          {{- range $sec := .Values.images.pullSecrets }}
-          - name: {{ $sec | quote }}
+      containers:
+        - name: mongodb
+          image: {{ printf "%s/%s:%s" .Values.images.mongodbImage.registry .Values.images.mongodbImage.repo .Values.images.mongodbImage.tag }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command:
+            - /scripts/setup.sh
+          {{- if or (eq $azureProxyEnabled true) (.Values.proxy.httpProxy.noProxy) }}
+          args:
+            - export MONGODB_INITIAL_PRIMARY_HOST=pxc-backup-mongodb-0.$(K8S_SERVICE_NAME) && export MONGODB_ADVERTISED_HOSTNAME=$(MY_POD_NAME).$(K8S_SERVICE_NAME) && /scripts/setup.sh
           {{- end }}
-      {{- end }}
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: K8S_SERVICE_NAME
+              value: pxc-backup-mongodb-headless
+            - name: MONGODB_INITIAL_PRIMARY_HOST
+              value: pxc-backup-mongodb-0.$(K8S_SERVICE_NAME)
+            - name: MONGODB_REPLICA_SET_NAME
+              value: rs0
+            - name: MONGODB_ADVERTISED_HOSTNAME
+              value: $(MY_POD_NAME).$(K8S_SERVICE_NAME)
+            - name: SHARED_FILE
+              value: "/shared/info.txt"
+            - name: MONGODB_USERNAME
+              value: pxbackup
+            - name: MONGODB_DATABASE
+              value: px-backup
+            - name: MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: mongodb-password
+                  name: pxc-backup-mongodb
+            - name: MONGODB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: mongodb-root-password
+                  name: pxc-backup-mongodb
+            - name: MONGODB_REPLICA_SET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: mongodb-replica-set-key
+                  name: pxc-backup-mongodb
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "no"
+            - name: MONGODB_SYSTEM_LOG_VERBOSITY
+              value: "0"
+            - name: MONGODB_DISABLE_SYSTEM_LOG
+              value: "no"
+            - name: MONGODB_ENABLE_IPV6
+              value: "no"
+            - name: MONGODB_ENABLE_DIRECTORY_PER_DB
+              value: "no"
+            - name: MONGODB_EXTRA_FLAGS
+              value: {{ printf "--wiredTigerCacheSizeGB=%d" $mongoCacheSize }}
+            {{- if or (empty .Values.proxy.includeNoProxyList) (has "pxc-backup-mongodb" .Values.proxy.includeNoProxyList) }}
+            {{- include "proxy.noProxyEnv" . | nindent 12 }}
+            {{- end }}
+          ports:
+            - containerPort: 27017
+              name: mongodb
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+              - bash
+              - -ec
+              - |
+                mongosh --eval 'db.adminCommand("ping") && db.hello().isWritablePrimary || db.hello().secondary' | grep -q 'true'            
+            failureThreshold: 6
+            initialDelaySeconds: 600
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -ec
+              - |
+                mongosh --eval 'db.hello().isWritablePrimary || db.hello().secondary' | grep -q 'true'
+            failureThreshold: 6
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          volumeMounts:
+            - mountPath: /bitnami/mongodb
+              name: pxc-mongodb-data
+            - mountPath: /scripts/setup.sh
+              name: scripts
+              subPath: setup.sh
       {{- with .Values.tolerations }}
       tolerations:
       {{- toYaml . | nindent 8 }}
       {{- end }}
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: px-backup-dashboard-prometheus
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/component: px-backup
-{{- include "px-central.labels" . | nindent 4 }}
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  - services
-  - endpoints
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-- nonResourceURLs:
-  - /metrics
-  - /federate
-  verbs:
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: px-backup-dashboard-prometheus
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/component: px-backup
-{{- include "px-central.labels" . | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: px-backup-dashboard-prometheus
-subjects:
-- kind: ServiceAccount
-  name: px-backup-dashboard-prometheus
-  namespace: {{ .Release.Namespace }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: px-backup-dashboard-prometheus
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/component: px-backup
-{{- include "px-central.labels" . | nindent 4 }}
-spec:
-  type: ClusterIP
-  ports:
-    - name: web
-      port: 9090
-      protocol: TCP
-      targetPort: 9090
-  selector:
-    prometheus: px-backup-dashboard-prometheus
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: px-backup-dashboard-prometheus
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/component: px-backup
-{{- include "px-central.labels" . | nindent 4 }}
-
-
----
-apiVersion: monitoring.coreos.com/v1
-kind: Prometheus
-metadata:
-   name: px-backup-dashboard-prometheus
-   namespace: {{ .Release.Namespace }}
-spec:
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          {{- if .Values.nodeAffinityLabel }}
-          - key: {{ .Values.nodeAffinityLabel }}
-            operator: Exists
-          {{- else }}
-          - key: pxbackup/enabled
-            operator: NotIn
-            values:
-            - "false"
-          {{- end }}
-  additionalAlertManagerConfigs:
-    key: am-configs.yaml
-    name: pxc-backup-metrics
-  {{- if and (eq $azureProxyEnabled true) (not (has "px-backup-dashboard-prometheus" .Values.proxy.excludeAzureProxyList)) }}
-  podMetadata:
-    annotations:
-      kubernetes.azure.com/no-http-proxy-vars: "true"
-  {{- end }}
-  {{- if .Values.persistentStorage.storageClassName }}
-  storage:
-    volumeClaimTemplate:
+      volumes:
+        - name: scripts
+          configMap:
+            defaultMode: 493
+            name: pxc-backup-mongodb-scripts
+        {{- if eq $externalPersistentStorageEnabled false }}
+        - name: pxc-mongodb-data
+          emptyDir: {}
+        {{- end }}
+  {{- if eq $externalPersistentStorageEnabled true }}
+  volumeClaimTemplates:
+    - metadata:
+        name: pxc-mongodb-data
       spec:
-        storageClassName: {{ .Values.persistentStorage.storageClassName }}
+        accessModes:
+          - "ReadWriteOnce"
         resources:
           requests:
-            {{- if eq .Release.IsInstall true }}
-            storage: {{ .Values.persistentStorage.prometheus.storage }}
-            {{- else }}
-            storage: {{ $storageSize }}
-            {{- end }}
-  {{- end }}
-  containers:
-  - args:
-    - --web.console.templates=/etc/prometheus/consoles
-    - --web.console.libraries=/etc/prometheus/console_libraries
-    - --storage.tsdb.retention.time={{ .Values.pxbackup.prometheus.retention }}
-        {{- if eq .Release.IsInstall true }}
-    - --storage.tsdb.retention.size={{ .Values.persistentStorage.prometheus.retentionSize }}
-        {{- else }}
-    - --storage.tsdb.retention.size={{ $retentionSize }}
+            storage: {{ .Values.persistentStorage.mongodbVolumeSize }}
+        {{- if .Values.persistentStorage.storageClassName }}
+        storageClassName: {{ .Values.persistentStorage.storageClassName }}
         {{- end }}
-    - --config.file=/etc/prometheus/config_out/prometheus.env.yaml
-    - --storage.tsdb.path=/prometheus
-    - --web.enable-lifecycle
-    - --web.route-prefix=/
-    - --log.level=debug
-    - --web.config.file=/etc/prometheus/web_config/web-config-custom.yaml
-    env:
-    - name: AUTH_SECRET
-      valueFrom:
-        secretKeyRef:
-          name: pxc-backup-metrics
-          key: metrics-token
-    {{- if or (empty .Values.proxy.includeNoProxyList) (has "px-backup-dashboard-prometheus" .Values.proxy.includeNoProxyList) }}
-    {{ include "proxy.noProxyEnv" . | nindent 4 }}
-    {{- end }}
-    image: {{ printf "%s/%s:%s" .Values.images.pxBackupPrometheusImage.registry .Values.images.pxBackupPrometheusImage.repo .Values.images.pxBackupPrometheusImage.tag }}
-    livenessProbe:
-      exec:
-        command:
-        - sh
-        - -c
-        - wget {{ if .Values.proxy.httpProxy.noProxy }}--proxy=off{{ end }} http://localhost:9090/-/healthy --header="Authorization:Basic $AUTH_SECRET"
-          -qO-
-    name: prometheus
-    readinessProbe:
-      exec:
-        command:
-        - sh
-        - -c
-        - wget {{ if .Values.proxy.httpProxy.noProxy }}--proxy=off{{ end }} http://localhost:9090/-/ready --header="Authorization:Basic $AUTH_SECRET"
-          -qO-
-    startupProbe:
-      exec:
-        command:
-        - sh
-        - -c
-        - wget {{ if .Values.proxy.httpProxy.noProxy }}--proxy=off{{ end }} http://localhost:9090/-/ready --header="Authorization:Basic $AUTH_SECRET"
-          -qO-
-    ports:
-    - containerPort: 9090
-      name: web
-      protocol: TCP
-  - args:
-    - --listen-address=:8080
-    - --reload-url=http://$(USERNAME):$(PASSWORD)@localhost:9090/-/reload
-    - --config-file=/etc/prometheus/config/prometheus.yaml.gz
-    - --config-envsubst-file=/etc/prometheus/config_out/prometheus.env.yaml
-    - --watched-dir=/etc/prometheus/rules/prometheus-px-backup-dashboard-prometheus-rulefiles-0
-    - --log-level=debug
-    name: config-reloader
-    env:
-    - name: USERNAME
-      valueFrom:
-        secretKeyRef:
-          key: username
-          name: pxc-backup-metrics
-    - name: PASSWORD
-      valueFrom:
-        secretKeyRef:
-          key: password
-          name: pxc-backup-metrics
-    {{- if or (empty .Values.proxy.includeNoProxyList) (has "px-backup-dashboard-prometheus" .Values.proxy.includeNoProxyList) }}
-    {{ include "proxy.noProxyEnv" . | nindent 4 }}
-    {{- end }}
-    ports:
-    - containerPort: 8080
-      name: reloader-web
-      protocol: TCP
-  {{- if $isOpenshiftCluster }}
-  {{- else }}
-  securityContext:
-    fsGroup: 2000
-    runAsNonRoot: true
-    runAsUser: 1000
   {{- end }}
-  logLevel: debug
-  listenLocal: true
-  volumeMounts:
-    - mountPath: /etc/prometheus/web_config/web-config-custom.yaml
-      name: web-config-custom
-      readOnly: true
-      subPath: web-config-custom.yaml
-  volumes:
-    - name: web-config-custom
-      secret:
-        defaultMode: 420
-        secretName: pxc-backup-metrics
-  replicas: {{ .Values.pxbackup.prometheus.replicas }}
-  evaluationInterval: 30s
-  scrapeInterval: 30s
-  ruleSelector:
-    matchLabels:
-      app: px-backup-alerts
-  serviceAccountName: px-backup-dashboard-prometheus
-  {{- if .Values.images.pullSecrets }}
-  imagePullSecrets:
-    {{- range $sec := .Values.images.pullSecrets }}
-    - name: {{ $sec | quote }}
-    {{- end }}
-  {{- end }}
-  serviceMonitorSelector:
-    matchLabels:
-      name: px-backup-dashboard-prometheus-sm
-  {{- with .Values.tolerations }}
-  tolerations:
-  {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end}}
-
-{{- if (or (eq $deployDedicatedMonitoringSystem true) (eq $pxMonitorEnabled true))}}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  labels:
-    app.kubernetes.io/component: pxc-backup-metrics
-{{- include "px-central.labels" . | nindent 4 }}
-  name: pxc-backup-metrics
-  namespace: {{ .Release.Namespace }}
-type: Opaque
-stringData:
-  metrics-token: {{ $metricsToken }}
-  username: admin
-  password: {{ $metricsPass }}
-  web-config-custom.yaml: |
-    basic_auth_users:
-      admin: {{ (split ":" $metricsBasicAuth)._1 }}
-  {{- if eq $deployDedicatedMonitoringSystem true }}
-  am-configs.yaml: |
-    - path_prefix: /
-      scheme: http
-      kubernetes_sd_configs:
-      - role: endpoints
-        namespaces:
-          names:
-          - {{ .Release.Namespace }}
-      basic_auth:
-        username: admin
-        password: {{ $metricsPass }}
-      relabel_configs:
-      - action: keep
-        source_labels:
-        - __meta_kubernetes_service_name
-        regex: alertmanager-operated
-      - action: keep
-        source_labels:
-        - __meta_kubernetes_endpoint_port_name
-        regex: web
-  {{- end }}
-{{- end}}
-
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  namespace: {{ .Release.Namespace }}
-  name: px-backup-dashboard-prometheus-sm
-  labels:
-    name: px-backup-dashboard-prometheus-sm
-    app.kubernetes.io/component: px-backup
-{{- include "px-central.labels" . | nindent 4 }}
-spec:
-  endpoints:
-  - metricRelabelings:
-    - action: labeldrop
-      regex: (instance|pod)
-    - action: drop
-      regex: process_.*
-      sourceLabels:
-      - __name__
-    - action: drop
-      regex: go_.*
-      sourceLabels:
-      - __name__
-    - action: drop
-      regex: grpc_.*
-      sourceLabels:
-      - __name__
-    - action: drop
-      regex: (pxbackup_backup_duration_seconds|pxbackup_backup_resource_count|pxbackup_backup_schedule_status|pxbackup_backup_size_bytes|pxbackup_backup_volume_count|pxbackup_backuplocation_metrics|pxbackup_cloudcred_metrics|pxbackup_schedpolicy_metrics|pxbackup_restore_duration_seconds|pxbackup_restore_resource_count|pxbackup_restore_size_bytes|pxbackup_restore_volume_count)
-      sourceLabels:
-      - __name__
-    port: rest-api
-    targetPort: 10001
-  namespaceSelector:
-    any: true
-  selector:
-    matchLabels:
-      app: px-backup
-
----
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  labels:
-    app: px-backup-alerts
-  name: px-backup-dashboard-prometheus-rules
-spec:
-  groups:
-  - name: gauge_rules
-    rules:
-    - alert: ClusterAlert
-      annotations:
-        description: {{`The Cluster "{{ $labels.name }}" {{- if eq $value 5.00 }} has failed.  {{- else if eq $value 2.00 }} has turned offline.{{- else }}unknown state.{{- end }} `}}
-        summary: {{`Cluster {{- if eq $value 5.00 }} addition failed {{- else if eq $value 2.00}} turned offline {{- else }}unknown state {{- end }}`}}
-        value: "{{`{{ $value }}`}}"
-      expr: pxbackup_cluster_status == 5 or pxbackup_cluster_status == 2
-      for: 1m
-      labels:
-        severity: critical
-
-    - alert: BackupAlert
-      annotations:
-        description: |-
-          {{ `The Backup "{{ $labels.name }}"
-          {{- if eq $labels.schedule_name "" }}
-          {{ else }} part of backup schedule "{{ $labels.schedule_name }}"
-          {{ end }} taken for cluster "{{ $labels.cluster }}" on namespace "{{ $labels.backup_namespace }}"
-          {{- if eq $value 4.00 }} has failed. {{- else }} is missing from backup location. {{- end }} `}}
-        summary: "{{` {{- if eq $value 4.00 -}} Backup failed {{- else -}} Cloud file missing {{- end }} `}}"
-        value: "{{`{{ $value }}`}}"
-      expr: pxbackup_backup_status == 4 or pxbackup_backup_status == 10
-      for: 1m
-      labels:
-        severity: critical
-
-    - alert: RestoreAlert
-      annotations:
-        description: {{`The Restore "{{ $labels.name
-          }}" made from backup "{{ $labels.backup}}" has failed.`}}
-        summary: Restoring backup failed 
-      expr: pxbackup_restore_status == 4
-      for: 1m
-      labels:
-        severity: critical
-
-    - alert: BackupLocationAlert
-      annotations:
-        description: {{`The Backup Location "{{ $labels.name }}" has failed.`}}
-        summary: Backup Location addition failed
-      expr: pxbackup_backup_location_status == 4
-      for: 1m
-      labels:
-        severity: critical
-
-    - alert: BackupLocationLimitedAvailabilityAlert
-      annotations:
-        description: {{`The Backup Location "{{ $labels.name }}" has transitioned to a limited availability state.`}}
-        summary: Backup Location status changed to limited availability. KDMP backup will not be allowed.
-      expr: pxbackup_backup_location_status == 5
-      for: 1m
-      labels:
-        severity: critical
-
-    - alert: PartialBackupAlert
-      annotations:
-        description: {{`The Backup "{{ $labels.name }}"
-          {{- if eq .Labels.schedule_name "" }}
-          {{ else }} part of backup schedule "{{ $labels.schedule_name }}"
-          {{ end }} taken for cluster "{{ $labels.cluster }}"on namespace "{{ $labels.backup_namespace}}"
-          was only completed partially.`}}
-        summary: Partial Backup Success
-      expr: pxbackup_backup_status == 8
-      for: 1m
-      labels:
-        severity: critical
+{{- end -}}
