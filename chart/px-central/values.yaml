@@ -19,8 +19,6 @@ persistentStorage:
   mongoCacheSize: 4
   keycloakThemeVolumeSize: "5Gi"
   keycloakBackendVolumeSize: "10Gi"
-  preUpgradeHookVolumeSize: "65Gi"
-  preInstallHookVolumeSize: "2Gi"
 
 storkRequired: false
 nodeAffinityLabel: ""
@@ -269,12 +267,6 @@ images:
     repo: portworx
     imageName: mysql
     tag: 8.0.40
-    module: pxCentral
-  preSetupHookImage:
-    registry: docker.io
-    repo: portworx
-    imageName: pxcentral-onprem-hook
-    tag: 2.8.3
     module: pxCentral
   mysqlInitImage:
     registry: docker.io

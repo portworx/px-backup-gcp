@@ -509,7 +509,7 @@ spec:
       {{- end }}
       initContainers:
         - name: wait-for-postgresql
-          image: "{{ .Values.images.keycloakInitContainerImage.registry }}/{{ .Values.images.keycloakInitContainerImage.repo }}:{{ .Values.images.keycloakInitContainerImage.tag }}"
+          image: "{{ .Values.images.keycloakInitContainerImage.registry }}/{{ .Values.images.keycloakInitContainerImage.repo }}/{{ .Values.images.keycloakInitContainerImage.imageName }}:{{ .Values.images.keycloakInitContainerImage.tag }}"
           imagePullPolicy: {{ .Values.images.pullPolicy }}
           command:
             - sh
